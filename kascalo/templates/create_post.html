@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Create Post{% endblock %}
+
+{% block content %}
+<div class="page" style="max-width:620px;">
+
+    <div class="page-header">
+        <h1>📢 Post an Update</h1>
+        <p>Share news, notices or community updates in your area</p>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form action="/create_post" method="POST" enctype="multipart/form-data">
+
+                <div class="form-group">
+                    <label>Type</label>
+                    <select name="type" id="post-type" onchange="updatePlaceholder()">
+                        <option value="general">📢 General Notice</option>
+                        <option value="alert">🚨 Alert / Warning</option>
+                        <option value="news">📰 Local News</option>
+                        <option value="notice">📌 Community Notice</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea name="content" id="content-area" placeholder="Share something with your community..." required></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" name="location" value="{{ user.location if user else '' }}" placeholder="Area / neighbourhood">
+                    </div>
+                    <div class="form-group">
+                        <label>Attach Image or Video</label>
+                        <input type="file" name="media" accept="image/*,video/*" style="padding:7px;">
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div id="media-preview" style="display:none;margin-bottom:16px;">
+                    <img id="img-preview" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;display:none;" alt="">
+                    <video id="vid-preview" controls style="width:100%;border-radius:8px;display:none;"></video>
+                </div>
+
+                <div class="flex justify-between items-center" style="margin-top:8px;">
+                    <a href="/feed" class="btn btn-ghost">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Publish Post →</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const placeholders = {
+    general: 'Share something with your community...',
+    alert:   '⚠️ Describe the alert or warning clearly...',
+    news:    'Share local news happening around you...',
+    notice:  'Post a notice for community members...'
+};
+
+function updatePlaceholder() {
+    const type = document.getElementById('post-type').value;
+    document.getElementById('content-area').placeholder = placeholders[type] || placeholders.general;
+}
+
+document.querySelector('input[name="media"]').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const preview = document.getElementById('media-preview');
+    const img = document.getElementById('img-preview');
+    const vid = document.getElementById('vid-preview');
+    preview.style.display = 'block';
+    if (file.type.startsWith('image/')) {
+        img.src = URL.createObjectURL(file);
+        img.style.display = 'block';
+        vid.style.display = 'none';
+    } else {
+        vid.src = URL.createObjectURL(file);
+        vid.style.display = 'block';
+        img.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

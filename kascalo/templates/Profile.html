@@ -1,0 +1,680 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+
+{% block head %}
+<style>
+.profile-wrap { max-width: 800px; margin: 0 auto; }
+
+/* ── BANNER ── */
+.profile-banner {
+    position: relative;
+    height: 200px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    overflow: hidden;
+    background: var(--surface2);
+}
+
+.profile-banner img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.banner-placeholder {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1a0e08 0%, #2d1408 40%, #1a1917 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.banner-edit-btn {
+    position: absolute;
+    bottom: 12px; right: 14px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-body);
+    backdrop-filter: blur(4px);
+    transition: background 0.15s;
+}
+
+.banner-edit-btn:hover { background: rgba(0,0,0,0.8); }
+
+/* ── PROFILE HEADER ── */
+.profile-header-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 0 24px 22px;
+    margin-bottom: 20px;
+}
+
+.profile-avatar-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-top: -44px;
+    margin-bottom: 14px;
+}
+
+.profile-avatar-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-avatar {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    border: 3px solid var(--surface);
+    background: var(--accent);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-head);
+    font-size: 30px;
+    font-weight: 700;
+    color: white;
+}
+
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.avatar-edit-btn {
+    position: absolute;
+    bottom: 2px; right: 2px;
+    width: 26px; height: 26px;
+    background: var(--accent);
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* Stats row */
+.profile-stats {
+    display: flex;
+    gap: 28px;
+}
+
+.stat-item { text-align: center; }
+
+.stat-num {
+    font-family: var(--font-head);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 3px;
+}
+
+.stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Name / bio row */
+.profile-name {
+    font-family: var(--font-head);
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.profile-meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.profile-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+/* Business card strip */
+.business-strip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.business-strip-icon {
+    width: 36px; height: 36px;
+    background: rgba(232,98,42,0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* ── FILTER TABS ── */
+.profile-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+    gap: 0;
+}
+
+.profile-tab {
+    flex: 1;
+    text-align: center;
+    padding: 12px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    user-select: none;
+}
+
+.profile-tab:hover { color: var(--text); }
+
+.profile-tab.active {
+    color: var(--text);
+    border-bottom-color: var(--text);
+}
+
+/* ── INSTAGRAM GRID ── */
+.post-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+}
+
+.grid-item {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: var(--surface2);
+    position: relative;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.grid-item:hover .grid-overlay { opacity: 1; }
+
+.grid-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s;
+}
+
+.grid-item:hover img { transform: scale(1.05); }
+
+/* Items without image — text tile */
+.grid-item-text {
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    text-align: center;
+    background: var(--surface2);
+    gap: 6px;
+}
+
+.grid-item-icon { font-size: 22px; opacity: 0.7; }
+
+.grid-item-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    line-height: 1.4;
+    max-height: 3.5em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.grid-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    gap: 16px;
+}
+
+.grid-overlay-stat {
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* type badge in grid */
+.grid-badge {
+    position: absolute;
+    top: 6px; left: 6px;
+    background: rgba(0,0,0,0.65);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.04em;
+    backdrop-filter: blur(4px);
+}
+
+.grid-badge.job     { background: rgba(62,207,120,0.8); }
+.grid-badge.event   { background: rgba(77,166,255,0.8); }
+.grid-badge.alert   { background: rgba(255,79,79,0.8); }
+.grid-badge.service { background: rgba(232,98,42,0.8); }
+
+/* empty grid */
+.grid-empty {
+    grid-column: 1/-1;
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--muted);
+}
+
+.grid-empty-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.4; }
+
+/* ── POST DETAIL MODAL ── */
+.post-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 300;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(6px);
+}
+
+.post-modal-overlay.open { display: flex; }
+
+.post-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 520px;
+    max-height: 88vh;
+    overflow-y: auto;
+    animation: slideUp 0.22s ease;
+}
+
+@keyframes slideUp {
+    from { opacity:0; transform:translateY(20px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+
+.post-modal-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.post-modal-close {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.post-modal-img {
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+    display: block;
+}
+
+.post-modal-body { padding: 18px; }
+
+.post-modal-title {
+    font-family: var(--font-head);
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.post-modal-desc {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 12px;
+}
+
+.post-modal-meta {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+    .post-grid { grid-template-columns: repeat(3, 1fr); gap: 2px; }
+    .profile-stats { gap: 18px; }
+    .profile-header-card { padding: 0 16px 18px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page" style="padding-top:0;">
+<div class="profile-wrap">
+
+    <!-- ── BANNER ── -->
+    <div class="profile-banner">
+        {% if user.banner_image %}
+            <img src="/static/uploads/{{ user.banner_image }}" alt="Banner">
+        {% else %}
+            <div class="banner-placeholder">
+                <div style="text-align:center;color:rgba(255,255,255,0.15);">
+                    <div style="font-size:36px;margin-bottom:4px;">🏙</div>
+                    <div style="font-size:12px;font-weight:600;letter-spacing:0.08em;">ADD A COVER PHOTO</div>
+                </div>
+            </div>
+        {% endif %}
+
+        <form action="/update_banner" method="POST" enctype="multipart/form-data" id="banner-form">
+            <label class="banner-edit-btn" for="banner-input">
+                <i class="bi bi-camera-fill"></i> Edit Cover
+            </label>
+            <input type="file" id="banner-input" name="image" accept="image/*"
+                   style="display:none;" onchange="document.getElementById('banner-form').submit()">
+        </form>
+    </div>
+
+    <!-- ── PROFILE HEADER ── -->
+    <div class="profile-header-card">
+
+        <div class="profile-avatar-row">
+            <!-- Avatar -->
+            <div class="profile-avatar-wrap">
+                <div class="profile-avatar">
+                    {% if user.profile_image %}
+                        <img src="/static/uploads/{{ user.profile_image }}" alt="">
+                    {% else %}
+                        {{ user.username[0]|upper }}
+                    {% endif %}
+                </div>
+                <form action="/update_profile" method="POST"
+                      enctype="multipart/form-data" id="pic-form">
+                    <label class="avatar-edit-btn" for="pic-input" title="Change photo">
+                        <i class="bi bi-pencil-fill" style="font-size:10px;color:#2B2A2A;"></i>
+                    </label>
+                    <input type="file" id="pic-input" name="image" accept="image/*"
+                           style="display:none;"
+                           onchange="document.getElementById('pic-form').submit()">
+                </form>
+            </div>
+
+            <!-- Stats -->
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <div class="stat-num">{{ posts|length }}</div>
+                    <div class="stat-label">Posts</div>
+                </div>
+                {% set job_count     = posts | selectattr('post_type','equalto','job')     | list | length %}
+                {% set service_count = posts | selectattr('post_type','equalto','service') | list | length %}
+                {% set event_count   = posts | selectattr('post_type','equalto','event')   | list | length %}
+
+            </div>
+        </div>
+
+        <!-- Name + info -->
+        <div class="profile-name">{{ user.username }}</div>
+        <div class="profile-meta">{{ user.email }}</div>
+
+        <div class="profile-tags">
+            {% if user.location %}
+                <span style="font-size:13px;color:var(--muted);">
+                    <i class="bi bi-geo-alt-fill" style="color:#FF4400;"></i> {{ user.location }}
+                </span>
+            {% endif %}
+            {% if user.phone %}
+                <span style="font-size:13px;color:var(--muted);">
+                    <i class="bi bi-telephone-fill" style="color:#FF4400;"></i> {{ user.phone }}
+                </span>
+            {% endif %}
+            {% if user.category %}
+                <span class="badge badge-service" style="text-transform:capitalize;">{{ user.category }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Type badges breakdown -->
+        <div class="flex gap-8" style="flex-wrap:wrap;margin-top:10px;">
+            {% set post_count    = posts | selectattr('post_type','equalto','post')    | list | length %}
+            {% set alert_count   = posts | selectattr('post_type','equalto','alert')   | list | length %}
+            {% if post_count    %}<span class="badge badge-service"> {{ post_count }} Posts</span>{% endif %}
+            {% if job_count     %}<span class="badge badge-job"> {{ job_count }} Jobs</span>{% endif %}
+            {% if service_count %}<span class="badge badge-service">{{ service_count }} Services</span>{% endif %}
+            {% if event_count   %}<span class="badge badge-event">{{ event_count }} Events</span>{% endif %}
+            {% if alert_count   %}<span class="badge badge-alert">{{ alert_count }} Alerts</span>{% endif %}
+        </div>
+
+        <!-- Business strip -->
+        {% if user.company_name or user.business_name or user.shop_name %}
+            <div class="business-strip">
+                <div class="business-strip-icon">💼</div>
+                <div>
+                    <div style="font-weight:700;font-size:13px;">
+                        {{ user.company_name or user.business_name or user.shop_name }}
+                    </div>
+                    {% if user.service_type %}
+                        <div class="text-muted text-sm">{{ user.service_type }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+
+    <!-- ── FILTER TABS ── -->
+    <div class="profile-tabs">
+        <div class="profile-tab active" data-filter="all" onclick="filterGrid('all',this)">
+            <i class="bi bi-grid-3x3-gap-fill"></i> All
+        </div>
+        <div class="profile-tab" data-filter="post" onclick="filterGrid('post',this)">
+            <i class="bi bi-send-fill"></i> Posts
+        </div>
+        <div class="profile-tab" data-filter="job" onclick="filterGrid('job',this)">
+            <i class="bi bi-briefcase-fill"></i> Jobs
+        </div>
+        <div class="profile-tab" data-filter="service" onclick="filterGrid('service',this)">
+            <i class="bi bi-tools"></i> Services
+        </div>
+        <div class="profile-tab" data-filter="event" onclick="filterGrid('event',this)">
+            <i class="bi bi-calendar-event-fill"></i> Events
+        </div>
+        <div class="profile-tab" data-filter="alert" onclick="filterGrid('alert',this)">
+            <i class="bi bi-exclamation-triangle-fill"></i> Alerts
+        </div>
+    </div>
+
+    <!-- ── POST GRID ── -->
+    {% if posts %}
+        <div class="post-grid" id="post-grid">
+        {% for post in posts %}
+
+            {% set icons = {'job':'💼','service':'🏪','event':'🎉','alert':'🚨','post':'📢'} %}
+            {% set icon = icons.get(post.post_type, '📢') %}
+
+            <div class="grid-item"
+                 data-type="{{ post.post_type }}"
+                 onclick="openPostModal({{ loop.index0 }})">
+
+                <!-- Type badge -->
+                <div class="grid-badge {{ post.post_type }}">
+                    {{ post.post_type | upper }}
+                </div>
+
+                {% if post.image %}
+                    <img src="/static/uploads/{{ post.image }}"
+                         alt="{{ post.content or '' }}"
+                         loading="lazy">
+                {% else %}
+                    <div class="grid-item-text">
+                        <div class="grid-item-icon">{{ icon }}</div>
+                        <div class="grid-item-label">{{ post.content or '—' }}</div>
+                    </div>
+                {% endif %}
+
+                <div class="grid-overlay">
+                    <div class="grid-overlay-stat">
+                        <i class="bi bi-calendar3"></i>
+                        {{ post.created_at.strftime('%d %b') if post.created_at else '' }}
+                    </div>
+                </div>
+            </div>
+
+        {% endfor %}
+        </div>
+
+        <!-- empty tab state -->
+        <div id="grid-empty-state" style="display:none;padding:48px 20px;text-align:center;color:var(--muted);">
+            <div style="font-size:36px;margin-bottom:10px;opacity:0.4;">📭</div>
+            <div style="font-size:14px;">No posts of this type yet.</div>
+        </div>
+
+    {% else %}
+        <div class="grid-empty">
+            <div class="grid-empty-icon">📭</div>
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">No activity yet</div>
+            <div style="font-size:13px;">Start posting jobs, alerts, events or services.</div>
+            <a href="/feed" class="btn btn-primary" style="margin-top:16px;">Go to Feed</a>
+        </div>
+    {% endif %}
+
+</div>
+</div>
+
+<!-- ── POST DETAIL MODAL ── -->
+<div class="post-modal-overlay" id="post-modal">
+    <div class="post-modal">
+        <div class="post-modal-header">
+            <div id="modal-badge"></div>
+            <button class="post-modal-close" onclick="closePostModal()">×</button>
+        </div>
+        <img id="modal-img" class="post-modal-img" src="" alt="" style="display:none;">
+        <div class="post-modal-body">
+            <div class="post-modal-title" id="modal-title"></div>
+            <div class="post-modal-desc"  id="modal-desc"></div>
+            <div class="post-modal-meta"  id="modal-meta"></div>
+            <div id="modal-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── POST DATA for modal ─────────────────────────────
+const POSTS = [
+    {% for post in posts %}
+    {
+        id:        {{ post.id }},
+        type:      "{{ post.post_type }}",
+        content:   {{ (post.content or '')|tojson }},
+        location:  {{ (post.location or '')|tojson }},
+        image:     {{ (post.image or '')|tojson }},
+        created:   "{{ post.created_at.strftime('%d %b %Y') if post.created_at else '' }}",
+        del_url:   "{% if post.post_type == 'post' %}/delete_post/{{ post.id }}/post{% elif post.post_type == 'job' %}/delete_job/{{ post.id }}{% elif post.post_type == 'service' %}/delete_service/{{ post.id }}{% elif post.post_type == 'alert' %}/delete_alert/{{ post.id }}{% elif post.post_type == 'event' %}/delete_event/{{ post.id }}{% endif %}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const typeLabels = { job:'💼 Job', service:'🏪 Service', event:'🎉 Event', alert:'🚨 Alert', post:'📢 Post' };
+const badgeClass = { job:'badge-job', service:'badge-service', event:'badge-event', alert:'badge-alert', post:'badge-service' };
+
+// ── OPEN MODAL ──────────────────────────────────────
+function openPostModal(idx) {
+    const p = POSTS[idx];
+    if (!p) return;
+
+    document.getElementById('modal-badge').innerHTML =
+        `<span class="badge ${badgeClass[p.type]}">${typeLabels[p.type]}</span>`;
+
+    const img = document.getElementById('modal-img');
+    if (p.image) {
+        img.src = `/static/uploads/${p.image}`;
+        img.style.display = 'block';
+    } else {
+        img.style.display = 'none';
+    }
+
+    document.getElementById('modal-title').textContent = p.content || '';
+    document.getElementById('modal-desc').textContent  = '';
+
+    let meta = p.created;
+    if (p.location) meta += ` · 📍 ${p.location}`;
+    document.getElementById('modal-meta').textContent = meta;
+
+    const actions = document.getElementById('modal-actions');
+    actions.innerHTML = `
+        <form action="${p.del_url}" method="POST" onsubmit="return confirm('Delete this?')" style="display:inline;">
+            <button type="submit"
+                style="background:rgba(255,79,79,0.1);border:1px solid rgba(255,79,79,0.2);
+                       color:#ff4f4f;border-radius:6px;padding:6px 14px;font-size:12px;
+                       font-weight:600;cursor:pointer;font-family:var(--font-body);">
+                🗑 Delete
+            </button>
+        </form>`;
+
+    document.getElementById('post-modal').classList.add('open');
+}
+
+function closePostModal() {
+    document.getElementById('post-modal').classList.remove('open');
+}
+
+document.getElementById('post-modal').addEventListener('click', function(e) {
+    if (e.target === this) closePostModal();
+});
+
+// ── GRID FILTER ─────────────────────────────────────
+function filterGrid(type, tab) {
+    document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+
+    let visible = 0;
+    document.querySelectorAll('.grid-item').forEach(item => {
+        const match = type === 'all' || item.dataset.type === type;
+        item.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+
+    document.getElementById('grid-empty-state').style.display =
+        visible === 0 ? 'block' : 'none';
+}
+</script>
+{% endblock %}

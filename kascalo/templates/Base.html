@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ampibians – {% block title %}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --bg:        #0f0e0d;
+            --surface:   #1a1917;
+            --surface2:  #242220;
+            --border:    #2e2c29;
+            --text:      #f0ece4;
+            --muted:     #FFF9D2;
+            --accent:    #e8622a;
+            --accent2:   #f0a500;
+            --green:     #3ecf78;
+            --blue:      #4da6ff;
+            --red:       #ff4f4f;
+            --radius:    12px;
+            --radius-sm: 6px;
+            --font-head: 'Syne', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+       body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    background-image:
+        radial-gradient(circle at 20% 20%, rgba(232,98,42,0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(77,166,255,0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 0%, rgba(232,98,42,0.06) 0%, transparent 40%),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.018'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-attachment: fixed;
+}
+
+        /* ── NAV ── */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15,14,13,0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 20px;
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-logo span { color: var(--accent); }
+
+        .nav-logo .dot {
+            width: 8px; height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%,100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.5; transform: scale(1.4); }
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 4px;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links li { position: relative; }
+
+        .nav-links a {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--text);
+            background: var(--surface2);
+        }
+
+        .nav-links a.active { color: var(--accent); }
+
+        /* unread badge on message link */
+        .nav-unread-badge {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            background: var(--red);
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 9px;
+            font-weight: 800;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            border: 1.5px solid var(--bg);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-weight: 700;
+            font-size: 13px;
+            color: white;
+            text-decoration: none;
+            overflow: hidden;
+            border: 2px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #d4521f; }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+        /* ── LAYOUT ── */
+        .page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        .page-header { margin-bottom: 28px; }
+
+        .page-header h1 {
+            font-family: var(--font-head);
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .page-header p { color: var(--muted); font-size: 14px; }
+
+        /* ── CARDS ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .card:hover { border-color: #3e3b36; transform: translateY(-1px); }
+        .card-body { padding: 20px; }
+
+        /* ── BADGE ── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .badge-alert   { background: rgba(255,79,79,0.15);   color: var(--red);    }
+        .badge-event   { background: rgba(77,166,255,0.15);  color: var(--blue);   }
+        .badge-job     { background: rgba(62,207,120,0.15);  color: var(--green);  }
+        .badge-service { background: rgba(232,98,42,0.15);   color: var(--accent); }
+        .badge-shop    { background: rgba(240,165,0,0.15);   color: var(--accent2);}
+
+        /* ── FORM ── */
+        .form-group { margin-bottom: 18px; }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 14px;
+            padding: 10px 14px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+        select option { background: var(--surface2); }
+        textarea { resize: vertical; min-height: 90px; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* ── GRID ── */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .form-row         { grid-template-columns: 1fr; }
+            .nav-links        { display: none; }
+        }
+
+        /* ── UTILS ── */
+        .flex            { display: flex; }
+        .gap-8           { gap: 8px; }
+        .gap-12          { gap: 12px; }
+        .items-center    { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .mt-4            { margin-top: 4px; }
+        .mt-8            { margin-top: 8px; }
+        .mt-16           { margin-top: 16px; }
+        .text-muted      { color: var(--muted); font-size: 13px; }
+        .text-sm         { font-size: 13px; }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 540px;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 28px;
+            position: relative;
+            animation: slideUp 0.22s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity:0; transform: translateY(20px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal h2 {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        /* ── EMPTY STATE ── */
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+        .empty h3 {
+            font-family: var(--font-head);
+            font-size: 18px;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        /* ── TABS ── */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+
+        .tab.active, .tab:hover { color: var(--text); }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <nav class="nav">
+        <a href="/feed" class="nav-logo">
+        <img src="static/image/ampibians_logo.png"
+         style="width:32px;height:32px;border-radius:50%;object-fit:cover;"
+         alt="Ampibians">
+        Ampi<span>bians</span>
+    </a>
+
+    <ul class="nav-links">
+        <li><a href="/feed"     class="{% if request.path == '/feed' %}active{% endif %}">
+            <i class="bi bi-house-fill"></i> Feed
+        </a></li>
+        <li><a href="/alerts"   class="{% if request.path == '/alerts' %}active{% endif %}">
+            <i class="bi bi-exclamation-triangle-fill"></i> Alerts
+        </a></li>
+        <li><a href="/events"   class="{% if request.path == '/events' %}active{% endif %}">
+            <i class="bi bi-calendar-event-fill"></i> Events
+        </a></li>
+        <li><a href="/services" class="{% if request.path == '/services' %}active{% endif %}">
+            <i class="bi bi-tools"></i> Services
+        </a></li>
+        <li><a href="/jobs"     class="{% if request.path == '/jobs' %}active{% endif %}">
+            <i class="bi bi-briefcase-fill"></i> Jobs
+        </a></li>
+        <li>
+            <a href="/messages"
+               class="{% if request.path.startswith('/messages') %}active{% endif %}">
+                <i class="bi bi-chat-dots-fill"></i> Messages
+                <span class="nav-unread-badge" id="nav-unread"></span>
+            </a>
+        </li>
+    </ul>
+
+    <div class="nav-right">
+        <a href="/profile" class="avatar">
+            {% if current_user and current_user.profile_image %}
+                <img src="/static/uploads/{{ current_user.profile_image }}" alt="">
+            {% else %}
+                {{ session.username[0]|upper if session.username else 'U' }}
+            {% endif %}
+        </a>
+        <a href="/logout" class="btn btn-ghost" style="padding:6px 12px;">Logout</a>
+    </div>
+</nav>
+
+{% block content %}{% endblock %}
+
+{% block scripts %}{% endblock %}
+
+<script>
+async function checkUnread() {
+    try {
+        const res  = await fetch('/messages/unread_count');
+        const data = await res.json();
+        const el   = document.getElementById('nav-unread');
+        if (!el) return;
+        if (data.count > 0) {
+            el.textContent   = data.count;
+            el.style.display = 'flex';
+        } else {
+            el.style.display = 'none';
+        }
+    } catch(e) {}
+}
+checkUnread();
+setInterval(checkUnread, 15000);
+</script>
+
+</body>
+</html>

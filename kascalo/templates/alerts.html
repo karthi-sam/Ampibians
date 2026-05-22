@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Alerts{% endblock %}
+
+{% block content %}
+<div class="page">
+
+    <div class="flex items-center justify-between page-header">
+        <div>
+            <h1><i class="bi bi-exclamation-circle-fill"></i> Local Alerts</h1>
+            <p>Warnings, emergencies and important notices in your area</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('alert-modal')" style="background:var(--red);">+ Post Alert</button>
+    </div>
+
+    <!-- Alert type filter -->
+    <div class="flex gap-8" style="margin-bottom:24px;flex-wrap:wrap;">
+        <button class="filter-btn active" onclick="filterAlerts('',this)" style="padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;">All</button>
+        <button class="filter-btn" onclick="filterAlerts('emergency',this)" style="padding:6px 14px;border-radius:20px;border:1px solid rgba(255,79,79,0.3);background:rgba(255,79,79,0.1);color:var(--red);cursor:pointer;font-size:13px;font-weight:600;"><i class="bi bi-exclamation-triangle-fill" style="color:#FFD150;"></i> Emergency</button>
+        <button class="filter-btn" onclick="filterAlerts('weather',this)" style="padding:6px 14px;border-radius:20px;border:1px solid rgba(77,166,255,0.3);background:rgba(77,166,255,0.1);color:var(--blue);cursor:pointer;font-size:13px;font-weight:600;"><i class="bi bi-cloud-rain-heavy-fill"></i>  Weather</button>
+        <button class="filter-btn" onclick="filterAlerts('news',this)" style="padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:13px;font-weight:600;"><i class="bi bi-newspaper" style="color:#F1E6C9;" ></i> News</button>
+        <button class="filter-btn" onclick="filterAlerts('notice',this)" style="padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;font-size:13px;font-weight:600;"><i class="bi bi-pin-angle-fill" style="color:#F16D34;" ></i> Notice</button>
+    </div>
+
+    {% if alerts %}
+        <div style="display:flex;flex-direction:column;gap:12px;" id="alerts-list">
+        {% for alert in alerts %}
+            {% set alert_colors = {
+                'emergency': ('rgba(255,79,79,0.08)', 'rgba(255,79,79,0.3)', '#ff4f4f', '🚨'),
+                'weather':   ('rgba(77,166,255,0.08)', 'rgba(77,166,255,0.3)', '#4da6ff', '🌧'),
+                'news':      ('rgba(240,165,0,0.08)', 'rgba(240,165,0,0.3)', '#f0a500', '📰'),
+                'notice':    ('rgba(62,207,120,0.08)', 'rgba(62,207,120,0.3)', '#3ecf78', '📌')
+            } %}
+            {% set bg, bd, col, ico = alert_colors.get(alert.alert_type, ('rgba(30,28,26,0.5)', 'var(--border)', 'var(--muted)', '📢')) %}
+
+            <div class="alert-card" data-type="{{ alert.alert_type }}"
+                 style="background:{{ bg }};border:1px solid {{ bd }};border-radius:var(--radius);padding:20px;display:flex;gap:16px;transition:transform 0.2s;">
+
+                <div style="font-size:28px;flex-shrink:0;">{{ ico }}</div>
+
+                <div style="flex:1;">
+                    <div class="flex justify-between items-center" style="margin-bottom:8px;">
+                        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:{{ col }};">
+                            {{ alert.alert_type or 'Alert' }}
+                        </span>
+                        <span class="text-muted text-sm">{{ alert.days_live }}d ago · {{ alert.location }}</span>
+                    </div>
+
+                    <div style="font-family:var(--font-head);font-size:17px;font-weight:700;margin-bottom:6px;">
+                        {{ alert.title }}
+                    </div>
+                    <div style="font-size:14px;color:var(--muted);line-height:1.6;">
+                        {{ alert.description }}
+                    </div>
+
+                    {% if alert.image %}
+                        <img src="/static/uploads/{{ alert.image }}"
+                             style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:12px;" alt="">
+                    {% endif %}
+
+                    <div class="text-muted text-sm" style="margin-top:10px;">Posted by {{ alert.username }}</div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <div class="empty-icon">✅</div>
+            <h3>All clear!</h3>
+            <p>No alerts in your area right now.</p>
+        </div>
+    {% endif %}
+
+</div>
+
+<!-- POST ALERT MODAL -->
+<div class="modal-overlay" id="alert-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('alert-modal')">×</button>
+        <h2><i class="bi bi-exclamation-triangle-fill" style="color:#FFD150;"></i> Post an Alert</h2>
+
+        <form action="/alerts" method="POST" enctype="multipart/form-data">
+
+            <div class="form-group">
+                <label>Alert Type</label>
+                <select name="alert_type" required>
+                    <option value="emergency">Emergency</option>
+                    <option value="weather">Weather Warning</option>
+                    <option value="news">Local News</option>
+                    <option value="notice">General Notice</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" name="title" placeholder="Short, clear headline" required>
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" placeholder="Describe the situation clearly..." required></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Area / Location</label>
+                   <input type="text" name="location" placeholder="Which area?" value="{{ session.get('location', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Attach Image (optional)</label>
+                    <input type="file" name="image" accept="image/*" style="padding:7px;">
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('alert-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="background:var(--red);">Post Alert →</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function filterAlerts(type, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.style.fontWeight = '500');
+    btn.style.fontWeight = '700';
+    document.querySelectorAll('.alert-card').forEach(c => {
+        c.style.display = (!type || c.dataset.type === type) ? 'flex' : 'none';
+    });
+}
+
+document.getElementById('alert-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal('alert-modal');
+});
+</script>
+{% endblock %}

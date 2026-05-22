@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+{% block title %}Boost Post{% endblock %}
+
+{% block head %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+.boost-wrap {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.boost-hero {
+    background: linear-gradient(135deg, #1a0e08, #2a1408);
+    border: 1px solid rgba(232,98,42,0.3);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 28px;
+    text-align: center;
+}
+
+.boost-hero h1 {
+    font-family: var(--font-head);
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.boost-hero p { color: var(--muted); font-size: 14px; }
+
+/* Plan cards */
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+}
+
+.plan-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.plan-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.plan-card.selected {
+    border-color: var(--accent);
+    background: rgba(232,98,42,0.08);
+}
+
+.plan-card.popular::before {
+    content: 'POPULAR';
+    position: absolute;
+    top: 10px; right: -18px;
+    background: var(--accent);
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 3px 24px;
+    transform: rotate(35deg);
+    letter-spacing: 0.08em;
+}
+
+.plan-name {
+    font-family: var(--font-head);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.plan-price {
+    font-family: var(--font-head);
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.plan-days {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 14px;
+}
+
+.plan-features {
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.plan-features li::before {
+    content: '✓ ';
+    color: var(--green);
+    font-weight: 700;
+}
+
+/* What boosting does */
+.boost-benefits {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 24px;
+}
+
+.boost-benefits h3 {
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.benefit-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.benefit-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.benefit-text strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.benefit-text span {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* CTA */
+.boost-cta {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+}
+
+.boost-cta h3 {
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.selected-plan-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.selected-plan-display .price {
+    font-family: var(--font-head);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent);
+}
+
+.pay-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), #d4521f);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.pay-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(232,98,42,0.35); }
+.pay-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.secure-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* Success overlay */
+.success-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+}
+
+.success-overlay.show { display: flex; }
+
+.success-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 32px;
+    text-align: center;
+    max-width: 360px;
+    animation: pop 0.3s ease;
+}
+
+@keyframes pop {
+    from { transform: scale(0.8); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+.success-icon { font-size: 56px; margin-bottom: 16px; }
+
+.success-box h2 {
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: var(--green);
+}
+
+.success-box p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+
+@media (max-width: 600px) {
+    .plans-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+<div class="boost-wrap">
+
+    <!-- Hero -->
+    <div class="boost-hero">
+        <div style="font-size:40px;margin-bottom:12px;"><i class="bi bi-lightning-charge-fill"></i></div>
+        <h1>Boost Your Post</h1>
+        <p>Reach more people in your local area. Featured posts appear at the top of every page.</p>
+    </div>
+
+    <!-- Plan selection -->
+    <div style="font-family:var(--font-head);font-size:16px;font-weight:700;margin-bottom:14px;">
+        Choose a Plan
+    </div>
+
+    <div class="plans-grid">
+        {% for key, plan in plans.items() %}
+        <div class="plan-card {% if key == 'standard' %}popular{% endif %}"
+             data-plan="{{ key }}"
+             data-amount="{{ plan.amount }}"
+             data-days="{{ plan.days }}"
+             data-label="{{ plan.label }}"
+             data-display="{{ plan.display }}"
+             onclick="selectPlan(this)">
+
+            <div class="plan-name">{{ plan.label }}</div>
+            <div class="plan-price">{{ plan.display }}</div>
+            <div class="plan-days">{{ plan.days }} days</div>
+
+            <ul class="plan-features">
+                <li>Featured placement</li>
+                <li>Top of feed</li>
+                {% if key == 'standard' or key == 'premium' %}
+                    <li>Category page pin</li>
+                {% endif %}
+                {% if key == 'premium' %}
+                    <li>Priority ranking</li>
+                    <li>Boost badge</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Benefits -->
+    <div class="boost-benefits">
+        <h3>What Boosting Does</h3>
+
+        <div class="benefit-row">
+            <div class="benefit-icon" style="background:rgba(62,207,120,0.1);"><i class="bi bi-geo-alt-fill" style="color:#8BDFDD"></i></div>
+            <div class="benefit-text">
+                <strong>Top of Feed</strong>
+                <span>Your post appears above all regular posts for everyone in the area.</span>
+            </div>
+        </div>
+
+        <div class="benefit-row">
+            <div class="benefit-icon" style="background:rgba(77,166,255,0.1);"><i class="bi bi-eye-fill" style="color:#F69D39"></i></div>
+            <div class="benefit-text">
+                <strong>More Visibility</strong>
+                <span>3–5× more views compared to a non-boosted post.</span>
+            </div>
+        </div>
+
+        <div class="benefit-row">
+            <div class="benefit-icon" style="background:rgba(240,165,0,0.1);"><i class="bi bi-star-fill" style="color:#FFEA6C"></i></div>
+            <div class="benefit-text">
+                <strong>Featured Badge</strong>
+                <span>A gold "Boosted" badge marks your post so users notice it.</span>
+            </div>
+        </div>
+
+        <div class="benefit-row" style="margin-bottom:0;">
+            <div class="benefit-icon" style="background:rgba(232,98,42,0.1);"><i class="bi bi-pin-angle-fill" style="color:#FE9EC7"></i></div>
+            <div class="benefit-text">
+                <strong>Category Pinning</strong>
+                <span>Pinned at the top of the relevant section (Jobs, Services, etc.).</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="boost-cta">
+        <h3>Ready to Boost?</h3>
+        <p style="color:var(--muted);font-size:13px;margin-top:4px;">Select a plan above to continue.</p>
+
+        <div class="selected-plan-display" id="plan-display">
+            <span id="plan-display-name" style="color:var(--muted);">No plan selected</span>
+            <span class="price" id="plan-display-price">—</span>
+        </div>
+
+        <button class="pay-btn" id="pay-btn" disabled onclick="startPayment()">
+            <i class="bi bi-lock-fill"></i>
+            Pay Securely with Razorpay
+        </button>
+
+        <div class="secure-note">
+            <i class="bi bi-shield-check" style="color:var(--green);"></i>
+            Secured by Razorpay · UPI, Cards, Net Banking accepted
+        </div>
+    </div>
+
+</div>
+</div>
+
+<!-- Success overlay -->
+<div class="success-overlay" id="success-overlay">
+    <div class="success-box">
+        <div class="success-icon">🎉</div>
+        <h2>Boost Activated!</h2>
+        <p id="success-msg">Your post is now featured and will appear at the top of the feed.</p>
+        <a href="/feed" class="btn btn-primary" style="width:100%;justify-content:center;">
+            Go to Feed →
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const POST_ID   = {{ post_id }};
+const POST_TYPE = "{{ post_type }}";
+const RZP_KEY   = "{{ razorpay_key }}";
+
+let selectedPlan = null;
+
+function selectPlan(card) {
+    document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+
+    selectedPlan = {
+        key:     card.dataset.plan,
+        amount:  parseInt(card.dataset.amount),
+        days:    card.dataset.days,
+        label:   card.dataset.label,
+        display: card.dataset.display
+    };
+
+    document.getElementById('plan-display-name').textContent =
+        `${selectedPlan.label} · ${selectedPlan.days} days`;
+    document.getElementById('plan-display-name').style.color = 'var(--text)';
+    document.getElementById('plan-display-price').textContent = selectedPlan.display;
+
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = false;
+    btn.innerHTML = `<i class="bi bi-lock-fill"></i> Pay ${selectedPlan.display} · ${selectedPlan.days} Days`;
+}
+
+async function startPayment() {
+    if (!selectedPlan) return;
+
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<i class="bi bi-hourglass-split"></i> Creating order…`;
+
+    try {
+        const res  = await fetch('/boost/create_order', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                post_id:   POST_ID,
+                post_type: POST_TYPE,
+                plan:      selectedPlan.key
+            })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            alert('Failed to create order. Try again.');
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-lock-fill"></i> Pay Securely with Razorpay`;
+            return;
+        }
+
+        // open Razorpay checkout
+        const options = {
+            key:         RZP_KEY,
+            amount:      data.amount,
+            currency:    data.currency,
+            name:        'Kascalo',
+            description: `${data.plan.label} Boost · ${data.plan.days} days`,
+            order_id:    data.order_id,
+            theme:       { color: '#e8622a' },
+            handler: async function(response) {
+                // verify on server
+                const vRes  = await fetch('/boost/verify', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({
+                        razorpay_order_id:   response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature:  response.razorpay_signature
+                    })
+                });
+                const vData = await vRes.json();
+
+                if (vData.success) {
+                    const ends = new Date(vData.ends_at);
+                    document.getElementById('success-msg').textContent =
+                        `Your post is now featured until ${ends.toLocaleDateString('en-IN', {day:'numeric',month:'long'})}.`;
+                    document.getElementById('success-overlay').classList.add('show');
+                } else {
+                    alert('Payment verification failed. Contact support.');
+                }
+            },
+            modal: {
+                ondismiss: function() {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="bi bi-lock-fill"></i> Pay ${selectedPlan.display} · ${selectedPlan.days} Days`;
+                }
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+
+    } catch(e) {
+        console.error(e);
+        alert('Something went wrong. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-lock-fill"></i> Pay Securely with Razorpay`;
+    }
+}
+
+// auto-select standard plan
+document.addEventListener('DOMContentLoaded', () => {
+    const standard = document.querySelector('[data-plan="standard"]');
+    if (standard) selectPlan(standard);
+});
+</script>
+{% endblock %}

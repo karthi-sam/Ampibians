@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Events{% endblock %}
+
+{% block content %}
+<div class="page">
+
+    <div class="flex items-center justify-between page-header">
+        <div>
+            <h1><i class="bi bi-music-note-beamed" style="color:#F26076;"></i> Local Events</h1>
+            <p>Upcoming events, functions and gatherings near you</p>
+        </div>
+        <a href="/create_event" class="btn btn-primary">+ Create Event</a>
+    </div>
+
+    {% if events %}
+        <div class="grid-2">
+        {% for event in events %}
+            <div class="card">
+
+                <!-- Image -->
+                {% if event.image %}
+                    <div style="position:relative;overflow:hidden;height:180px;">
+                        <img src="/static/uploads/{{ event.image }}"
+                             style="width:100%;height:100%;object-fit:cover;" alt="">
+                        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(15,14,13,0.8),transparent);"></div>
+                        <div style="position:absolute;bottom:12px;left:16px;">
+                            {% if event.ticket_type == 'paid' %}
+                                <span class="badge" style="background:rgba(240,165,0,0.9);color:#000;"><i class="bi bi-ticket-perforated-fill ticket-icon"></i> ₹{{ event.ticket_price }}</span>
+                            {% else %}
+                                <span class="badge badge-green" style="background:rgba(62,207,120,0.9);color:#000;">✅ Free</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div style="height:80px;background:linear-gradient(135deg,var(--surface2),var(--surface));display:flex;align-items:center;justify-content:center;font-size:36px;">🎉</div>
+                {% endif %}
+
+                <div class="card-body">
+
+                    <div style="font-family:var(--font-head);font-size:17px;font-weight:700;margin-bottom:8px;">
+                        {{ event.event_title }}
+                    </div>
+
+                    <!-- Date/Time row -->
+                    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
+                        <div class="text-sm" style="color:var(--accent2);">
+                            <i class="bi bi-calendar-event-fill" style="color:#0d6efd;"></i>  {{ event.event_date }}{% if event.event_day %} · {{ event.event_day }}{% endif %}
+                            {% if event.event_time %} · <i class="bi bi-clock-fill" style="color:#fd7e14;"></i>  {{ event.event_time }}{% endif %}
+                        </div>
+                        <div class="text-muted text-sm">
+                            <i class="bi bi-geo-alt-fill" style="color:#dc3545;"></i>{{ event.place }}
+                        </div>
+                        {% if event.duration %}
+                            <div class="text-muted text-sm"> <i class="bi bi-hourglass-split"></i> {{ event.duration }}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if event.about_event %}
+                        <div style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.5;">
+                            {{ event.about_event[:140] }}{% if event.about_event|length > 140 %}…{% endif %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Seats -->
+                    {% if event.total_seats %}
+                        <div style="background:var(--surface2);border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:13px;">
+                            💺 {{ event.total_seats }} seats available
+                        </div>
+                    {% endif %}
+
+                    <div class="flex justify-between items-center">
+                        <div class="text-muted text-sm">By {{ event.username }}</div>
+                        <div class="flex gap-8">
+                            {% if event.google_map_link %}
+                                <a href="{{ event.google_map_link }}" target="_blank" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;"><i class="bi bi-geo-alt-fill" style="color:#dc3545;"></i> Directions</a>
+                            {% endif %}
+                            {% if event.ticket_type == 'paid' %}
+                                <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;">Get Ticket</button>
+                            {% else %}
+                                <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;">I'm Going →</button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <div class="empty-icon">🎉</div>
+            <h3>No events yet</h3>
+            <p>Be the first to post a local event or gathering.</p>
+            <a href="/create_event" class="btn btn-primary" style="margin-top:16px;">+ Create Event</a>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

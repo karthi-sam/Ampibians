@@ -1,0 +1,1204 @@
+{% extends "base.html" %}
+{% block title %}Feed{% endblock %}
+
+{% block head %}
+<style>
+.feed-wrap { max-width: 680px; margin: 0 auto; }
+
+/* Quick action cards */
+.quick-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.quick-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    transition: all 0.18s;
+    cursor: pointer;
+    user-select: none;
+}
+
+.quick-card:hover  { border-color: var(--accent); transform: translateY(-1px); }
+.quick-card.active { border-color: var(--accent); background: rgba(232,98,42,0.08); }
+.quick-icon  { font-size: 20px; }
+.quick-label { font-weight: 700; font-size: 11px; line-height: 1.2; text-align: center; }
+
+/* Location filter */
+.filter-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-bar label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.location-input {
+    flex: 1;
+    min-width: 160px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    font-family: var(--font-body);
+    transition: border-color 0.15s;
+}
+
+.location-input:focus { border-color: var(--accent); }
+.location-input::placeholder { color: var(--muted); }
+
+.filter-clear {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.filter-clear:hover { color: var(--text); border-color: var(--muted); }
+
+.active-filters { display: none; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.active-filters.show { display: flex; }
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(232,98,42,0.1);
+    border: 1px solid rgba(232,98,42,0.3);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.filter-chip button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+}
+
+.results-count { font-size: 12px; color: var(--muted); margin-bottom: 12px; padding: 0 2px; }
+
+.no-results { text-align: center; padding: 48px 20px; color: var(--muted); display: none; }
+.no-results-icon { font-size: 36px; margin-bottom: 10px; }
+.no-results h3 { font-family: var(--font-head); font-size: 17px; color: var(--text); margin-bottom: 6px; }
+
+/* POST CARD */
+.post-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+    overflow: visible;
+    transition: border-color 0.2s;
+    position: relative;
+}
+
+.post-card:hover { border-color: #3e3b36; }
+
+.post-card.featured {
+    border-color: rgba(240,165,0,0.4);
+    background: linear-gradient(180deg, rgba(240,165,0,0.03) 0%, var(--surface) 60px);
+}
+
+.featured-bar {
+    background: linear-gradient(90deg, rgba(240,165,0,0.15), transparent);
+    border-bottom: 1px solid rgba(240,165,0,0.2);
+    padding: 5px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent2);
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* Scam warning banner */
+.scam-banner {
+    background: rgba(255,79,79,0.08);
+    border-bottom: 1px solid rgba(255,79,79,0.2);
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    gap: 8px;
+    overflow: visible;
+}
+
+.post-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.post-meta { font-weight: 600; font-size: 14px; line-height: 1.2; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.post-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.scam-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(255,79,79,0.12);
+    border: 1px solid rgba(255,79,79,0.25);
+    border-radius: 20px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--red);
+    white-space: nowrap;
+}
+
+.post-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+/* Images */
+.post-image-wrap {
+    width: 100%;
+    overflow: hidden;
+    background: var(--surface2);
+    position: relative;
+}
+
+.post-image-wrap.ratio-landscape { aspect-ratio: 16 / 9; }
+.post-image-wrap.ratio-portrait  { aspect-ratio: 9 / 16; max-height: 600px; }
+.post-image-wrap.ratio-square    { aspect-ratio: 1 / 1; }
+.post-image-wrap.ratio-loading   { aspect-ratio: 16 / 9; }
+
+.post-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s;
+}
+
+.post-image-wrap img:hover { transform: scale(1.015); }
+
+.post-video-wrap { width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; }
+.post-video-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+.post-body  { padding: 12px 16px 14px; }
+.post-inner { padding: 0 16px 14px; }
+
+.post-title { font-family: var(--font-head); font-size: 17px; font-weight: 700; margin-bottom: 5px; }
+.post-org   { color: var(--accent); font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.post-desc  { font-size: 14px; color: var(--muted); line-height: 1.65; margin-bottom: 10px; }
+
+.walkin-box {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--accent2);
+    line-height: 1.7;
+}
+
+.msg-link {
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.msg-link:hover { color: var(--text); border-color: var(--muted); }
+
+/* ── THREE DOT MENU ── */
+.post-menu-wrap { position: relative; }
+
+.post-menu-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 20px;
+    line-height: 1;
+    transition: all 0.15s;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.post-menu-btn:hover { background: var(--surface2); color: var(--text); }
+
+.post-dropdown {
+    display: none;
+    position: absolute;
+    top: 34px; right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-width: 210px;
+    z-index: 200;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+    overflow: hidden;
+    animation: ddSlide 0.15s ease;
+}
+
+@keyframes ddSlide {
+    from { opacity:0; transform:translateY(-6px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+
+.post-dropdown.open { display: block; }
+
+.dd-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+    transition: background 0.1s;
+    text-decoration: none;
+}
+
+.dd-item:hover  { background: var(--surface2); }
+.dd-item.danger { color: var(--red); }
+.dd-item.warn   { color: var(--accent2); }
+.dd-item.safe   { color: var(--green); }
+.dd-divider     { height: 1px; background: var(--border); margin: 3px 0; }
+
+/* ACTIONS */
+.post-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.action-btn:hover { background: var(--surface2); color: var(--text); }
+.action-btn.liked { color: #ef4444; }
+.action-sep { flex: 1; }
+
+/* COMMENTS */
+.comments-section { border-top: 1px solid var(--border); display: none; }
+.comments-section.open { display: block; }
+
+.comments-list {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.comment-item { display: flex; gap: 8px; align-items: flex-start; }
+
+.comment-bubble {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 8px 12px;
+    flex: 1;
+}
+
+.comment-author { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 3px; }
+.comment-text   { font-size: 13px; line-height: 1.5; }
+
+.comment-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px 14px;
+    border-top: 1px solid var(--border);
+    align-items: center;
+}
+
+.comment-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 8px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.comment-input:focus { border-color: var(--accent); }
+.comment-input::placeholder { color: var(--muted); }
+
+.comment-send-btn {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.comment-send-btn:hover { background: #d4521f; }
+.no-comments { text-align: center; color: var(--muted); font-size: 13px; padding: 16px; }
+
+/* ── REPORT BOTTOM SHEET ── */
+.report-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 400;
+    backdrop-filter: blur(6px);
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.report-overlay.open { display: flex; }
+
+.report-sheet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 520px;
+    animation: sheetUp 0.25s ease;
+    overflow: hidden;
+}
+
+@keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+
+.report-head {
+    padding: 18px 20px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+}
+
+.report-head h3 {
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.report-head p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+.report-close {
+    position: absolute;
+    top: 14px; right: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+}
+
+.report-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+}
+
+.report-option:hover { background: var(--surface2); }
+.report-option:last-child { border-bottom: none; }
+.report-option i { color: var(--muted); font-size: 14px; }
+
+/* Toast */
+.feed-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.feed-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 600px) {
+    .quick-grid  { grid-template-columns: repeat(5,1fr); gap: 5px; }
+    .quick-label { font-size: 10px; }
+    .quick-icon  { font-size: 17px; }
+    .post-header { padding: 12px 12px 8px; }
+    .post-body, .post-inner { padding-left: 12px; padding-right: 12px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+<div class="feed-wrap">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between page-header">
+        <div>
+            <h1>Ampibians Feed</h1>
+            <p>What's happening in <strong>{{ user.location or 'your area' }}</strong></p>
+        </div>
+        <a href="/create_post" class="btn btn-primary">+ Post</a>
+    </div>
+
+    <!-- TYPE FILTER CARDS -->
+    <div class="quick-grid">
+        <div class="quick-card active" data-type="all" onclick="setTypeFilter('all',this)">
+            <div class="quick-icon"><i class="bi bi-grid-fill"></i></div>
+            <div class="quick-label">All</div>
+        </div>
+        <div class="quick-card" data-type="alert" onclick="setTypeFilter('alert',this)">
+            <div class="quick-icon"><i class="bi bi-exclamation-triangle-fill" style="color:#FFD150;"></i></div>
+            <div class="quick-label">Alerts</div>
+        </div>
+        <div class="quick-card" data-type="event" onclick="setTypeFilter('event',this)">
+            <div class="quick-icon"><i class="bi bi-calendar-event-fill" style="color:#F26076;"></i></div>
+            <div class="quick-label">Events</div>
+        </div>
+        <div class="quick-card" data-type="job" onclick="setTypeFilter('job',this)">
+            <div class="quick-icon"><i class="bi bi-briefcase-fill" style="color:#0d6efd;"></i></div>
+            <div class="quick-label">Jobs</div>
+        </div>
+        <div class="quick-card" data-type="service" onclick="setTypeFilter('service',this)">
+            <div class="quick-icon"><i class="bi bi-tools" style="color:#EAEFEF;"></i></div>
+            <div class="quick-label">Services</div>
+        </div>
+    </div>
+
+    <!-- LOCATION FILTER -->
+    <div class="filter-bar">
+        <label><i class="bi bi-geo-alt-fill" style="color:#dc3545;"></i> Location</label>
+        <input type="text" class="location-input" id="location-filter"
+               placeholder="Filter by area e.g. Ambattur, Chennai…"
+               oninput="applyFilters()"
+               value="{{ user.location or '' }}">
+        <button class="filter-clear" onclick="clearLocationFilter()">✕ Clear</button>
+    </div>
+
+    <div class="active-filters" id="active-filters"></div>
+    <div class="results-count" id="results-count"></div>
+    <div class="no-results" id="no-results">
+        <div class="no-results-icon">🔍</div>
+        <h3>No posts found</h3>
+        <p>Try a different location or remove the filter.</p>
+        <button class="btn btn-ghost" style="margin-top:12px;" onclick="resetFilters()">Reset Filters</button>
+    </div>
+
+    <!-- FEED -->
+    {% if posts %}
+    <div id="feed-list">
+    {% for item in posts %}
+
+    <div class="post-card {% if item.is_featured %}featured{% endif %}"
+         id="card-{{ item.feed_type }}-{{ item.id }}"
+         data-type="{{ item.feed_type or 'post' }}"
+         data-location="{{ (item.location or '')|lower }}">
+
+        <!-- Featured bar -->
+        {% if item.is_featured %}
+            <div class="featured-bar">⭐ Sponsored · Featured Post</div>
+        {% endif %}
+
+        <!-- Scam warning bar -->
+        {% if item.is_scam_flagged %}
+            <div class="scam-banner">
+                ⚠️ This account has multiple scam reports — proceed with caution
+            </div>
+        {% endif %}
+
+        <!-- POST HEADER -->
+        <div class="post-header">
+            <div class="post-user">
+                <div class="avatar">
+                    {% if item.profile_image %}
+                        <img src="/static/uploads/{{ item.profile_image }}" alt="">
+                    {% else %}
+                        {{ item.username[0]|upper }}
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="post-meta">
+                        {{ item.username }}
+                        {% if item.is_scam_flagged %}
+                            <span class="scam-badge">⚠️ Scam</span>
+                        {% endif %}
+                        {% if item.user_id != session.user_id %}
+                            <a href="/messages/{{ item.user_id }}" class="msg-link">💬 Message</a>
+                        {% endif %}
+                    </div>
+                    <div class="post-time">
+                        {{ item.days_live }}d ago
+                        {% if item.location %}
+                            · <i class="bi bi-geo-alt-fill" style="color:#dc3545;font-size:10px;"></i>
+                            {{ item.location }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="post-header-right">
+                <!-- Type badge -->
+                {% if item.feed_type == 'job' %}
+                    <span class="badge badge-job"><i class="bi bi-briefcase-fill"></i> Job</span>
+                {% elif item.feed_type == 'event' %}
+                    <span class="badge badge-event"><i class="bi bi-calendar-event-fill"></i> Event</span>
+                {% elif item.feed_type == 'alert' %}
+                    <span class="badge badge-alert"><i class="bi bi-exclamation-triangle-fill"></i> Alert</span>
+                {% elif item.feed_type == 'service' %}
+                    <span class="badge badge-service"><i class="bi bi-buildings-fill"></i> Service</span>
+                {% else %}
+                    <span class="badge badge-service"><i class="bi bi-send-fill"></i> Post</span>
+                {% endif %}
+
+                <!-- THREE DOT MENU -->
+                <div class="post-menu-wrap">
+                    <button class="post-menu-btn"
+                            onclick="toggleMenu('menu-{{ item.feed_type }}-{{ item.id }}', event)"
+                            title="More options">⋮</button>
+
+                    <div class="post-dropdown" id="menu-{{ item.feed_type }}-{{ item.id }}">
+
+                        {% if item.user_id == session.user_id %}
+                            <!-- Own post -->
+                            {% if item.feed_type in ['job', 'service', 'event'] %}
+                                <a class="dd-item warn"
+                                   href="/boost/{{ item.feed_type }}/{{ item.id }}"
+                                   onclick="closeAllMenus()">
+                                    <i class="bi bi-lightning-charge-fill"></i> Boost Post
+                                </a>
+                                <div class="dd-divider"></div>
+                            {% endif %}
+                            <form action="/delete_post/{{ item.id }}/{{ item.feed_type or 'post' }}"
+                                  method="POST"
+                                  onsubmit="return confirm('Delete this post?')">
+                                <button type="submit" class="dd-item danger">
+                                    <i class="bi bi-trash"></i> Delete Post
+                                </button>
+                            </form>
+
+                        {% else %}
+                            <!-- Other user's post -->
+                            <button class="dd-item safe"
+                                    onclick="closeAllMenus(); showToast('Marked as Interested ⭐')">
+                                <i class="bi bi-hand-thumbsup-fill"></i> Interested
+                            </button>
+                            <button class="dd-item"
+                                    onclick="closeAllMenus(); showToast('Marked as Not Interested')">
+                                <i class="bi bi-hand-thumbsdown"></i> Not Interested
+                            </button>
+                            <div class="dd-divider"></div>
+                            <button class="dd-item danger"
+                                    onclick="openReport({{ item.id }}, '{{ item.feed_type or 'post' }}'); closeAllMenus()">
+                                <i class="bi bi-flag-fill"></i> Report Post
+                            </button>
+                        {% endif %}
+
+                    </div>
+                </div>
+                <!-- END THREE DOT -->
+
+            </div>
+        </div>
+
+        <!-- CONTENT -->
+        {% if item.feed_type == 'job' %}
+            <div class="post-inner">
+                <div class="post-title">{{ item.job_title }}</div>
+                <div class="flex items-center gap-8" style="margin-bottom:10px;">
+                    {% if item.company_logo %}
+                        <img src="/static/uploads/{{ item.company_logo }}"
+                             style="width:28px;height:28px;border-radius:6px;object-fit:cover;
+                                    border:1px solid var(--border);background:white;flex-shrink:0;">
+                    {% else %}
+                        <i class="bi bi-buildings-fill" style="color:var(--accent);font-size:16px;"></i>
+                    {% endif %}
+                    <span class="post-org" style="margin-bottom:0;">{{ item.organization_name }}</span>
+                </div>
+                <div class="post-desc">
+                    {{ item.job_description[:200] }}{% if item.job_description|length > 200 %}…{% endif %}
+                </div>
+                <div class="flex gap-8" style="flex-wrap:wrap;margin-bottom:12px;">
+                    {% if item.employment_type %}
+                        <span class="badge badge-job">{{ item.employment_type }}</span>
+                    {% endif %}
+                    {% if item.experience %}
+                        <span class="badge" style="background:var(--surface2);color:var(--muted);">
+                            <i class="bi bi-clock-fill"></i> {{ item.experience }}
+                        </span>
+                    {% endif %}
+                    {% if item.hiring_type == 'walkin' %}
+                        <span class="badge" style="background:rgba(240,165,0,0.15);color:var(--accent2);">
+                            <i class="bi bi-person-walking"></i> Walk-in
+                        </span>
+                    {% endif %}
+                </div>
+                {% if item.hiring_type == 'walkin' and item.walkin_date %}
+                    <div class="walkin-box">
+                        <i class="bi bi-calendar2-date-fill" style="color:#309898;"></i>
+                        {{ item.walkin_date }}
+                        {% if item.walkin_start %}
+                            &nbsp;<i class="bi bi-hourglass-split"></i>
+                            {{ item.walkin_start }}–{{ item.walkin_end }}
+                        {% endif %}
+                        {% if item.walkin_location %}
+                            <br><i class="bi bi-geo-alt-fill" style="color:#dc3545;"></i>
+                            {{ item.walkin_location }}
+                        {% endif %}
+                    </div>
+                {% endif %}
+                <div class="flex gap-8">
+                    {% if item.apply_link %}
+                        <a href="{{ item.apply_link }}" target="_blank"
+                           class="btn btn-primary" style="padding:7px 16px;font-size:12px;">Apply →</a>
+                    {% else %}
+                        <a href="/apply_job/{{ item.id }}"
+                           class="btn btn-primary" style="padding:7px 16px;font-size:12px;">Apply →</a>
+                    {% endif %}
+                    <a href="/interested_job/{{ item.id }}"
+                       class="btn btn-ghost" style="padding:7px 14px;font-size:12px;">⭐ Interested</a>
+                </div>
+            </div>
+
+        {% elif item.feed_type == 'event' %}
+            {% if item.image %}
+                <div class="post-image-wrap ratio-loading">
+                    <img src="/static/uploads/{{ item.image }}" alt="{{ item.event_title }}">
+                </div>
+            {% endif %}
+            <div class="post-body">
+                <div class="post-title">{{ item.event_title }}</div>
+                <div class="post-time" style="margin-bottom:8px;color:var(--muted);">
+                    <i class="bi bi-calendar-event-fill" style="color:#0d6efd;"></i>
+                    {{ item.event_date }}
+                    {% if item.event_time %}
+                        · <i class="bi bi-clock-fill" style="color:#fd7e14;"></i> {{ item.event_time }}
+                    {% endif %}
+                    · <i class="bi bi-geo-alt-fill" style="color:#dc3545;"></i> {{ item.place }}
+                </div>
+                {% if item.about_event %}
+                    <div class="post-desc">
+                        {{ item.about_event[:200] }}{% if item.about_event|length > 200 %}…{% endif %}
+                    </div>
+                {% endif %}
+                {% if item.ticket_type == 'paid' %}
+                    <span class="badge" style="background:rgba(240,165,0,0.15);color:var(--accent2);">
+                        <i class="bi bi-ticket-detailed-fill"></i> ₹{{ item.ticket_price }}
+                    </span>
+                {% else %}
+                    <span class="badge" style="background:rgba(62,207,120,0.15);color:var(--green);">
+                        ✅ Free Entry
+                    </span>
+                {% endif %}
+            </div>
+
+        {% elif item.feed_type == 'alert' %}
+            <div class="post-inner">
+                <div class="post-title">{{ item.title }}</div>
+                <div class="post-desc">{{ item.description }}</div>
+            </div>
+            {% if item.image %}
+                <div class="post-image-wrap ratio-loading">
+                    <img src="/static/uploads/{{ item.image }}" alt="">
+                </div>
+            {% endif %}
+
+        {% elif item.feed_type == 'service' %}
+            {% if item.image %}
+                <div class="post-image-wrap ratio-loading">
+                    <img src="/static/uploads/{{ item.image }}" alt="">
+                </div>
+            {% endif %}
+            <div class="post-inner">
+                <div class="post-title">
+                    {{ item.company_name or item.shop_name or 'Business Listing' }}
+                </div>
+                {% if item.service_type or item.shop_type %}
+                    <div class="post-org">{{ item.service_type or item.shop_type }}</div>
+                {% endif %}
+                <div class="post-desc">
+                    {{ (item.service_description or item.shop_description or item.content or '')[:200] }}
+                </div>
+                <div class="flex gap-8" style="flex-wrap:wrap;">
+                    {% if item.phone %}
+                        <a href="tel:{{ item.phone }}" class="btn btn-primary"
+                           style="padding:7px 14px;font-size:12px;">
+                            <i class="bi bi-telephone-fill"></i> Call
+                        </a>
+                    {% endif %}
+                    {% if item.map_link or item.shop_map_link %}
+                        <a href="{{ item.map_link or item.shop_map_link }}" target="_blank"
+                           class="btn btn-ghost" style="padding:7px 12px;font-size:12px;">
+                            <i class="bi bi-geo-alt-fill" style="color:#dc3545;"></i> Map
+                        </a>
+                    {% endif %}
+                    {% if item.website %}
+                        <a href="{{ item.website }}" target="_blank"
+                           class="btn btn-ghost" style="padding:7px 12px;font-size:12px;">
+                            🌐 Website
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+        {% else %}
+            <!-- General post -->
+            <div class="post-body">
+                <div style="font-size:15px;line-height:1.65;">{{ item.content }}</div>
+            </div>
+            {% if item.image %}
+                <div class="post-image-wrap ratio-loading">
+                    <img src="/static/uploads/{{ item.image }}" alt="">
+                </div>
+            {% endif %}
+            {% if item.video %}
+                <div class="post-video-wrap">
+                    <video src="/static/uploads/{{ item.video }}" controls></video>
+                </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- LIKE + COMMENT (general posts only) -->
+        {% if item.feed_type == 'post' or not item.feed_type %}
+            <div class="post-actions">
+                <button class="action-btn {% if item.liked %}liked{% endif %}"
+                        onclick="toggleLike({{ item.id }}, this)">
+                    <span>{% if item.liked %}❤️{% else %}🤍{% endif %}</span>
+                    <span id="like-count-{{ item.id }}">{{ item.likes_count or 0 }}</span>
+                </button>
+                <button class="action-btn" onclick="toggleComments({{ item.id }})">
+                    💬 <span id="comment-count-{{ item.id }}">{{ item.comment_count or 0 }}</span>
+                </button>
+                <div class="action-sep"></div>
+                <button class="action-btn"
+                        onclick="sharePost('{{ (item.content or '')[:50]|replace("'","\\'")|replace('"',"") }}')">
+                    🔗 Share
+                </button>
+            </div>
+
+            <div class="comments-section" id="comments-{{ item.id }}">
+                <div class="comments-list" id="comments-list-{{ item.id }}">
+                    <div class="no-comments">Loading…</div>
+                </div>
+                <div class="comment-input-row">
+                    <div class="avatar" style="width:28px;height:28px;font-size:11px;flex-shrink:0;">
+                        {% if current_user and current_user.profile_image %}
+                            <img src="/static/uploads/{{ current_user.profile_image }}" alt="">
+                        {% else %}
+                            {{ session.username[0]|upper if session.username else 'U' }}
+                        {% endif %}
+                    </div>
+                    <input class="comment-input"
+                           id="comment-input-{{ item.id }}"
+                           placeholder="Write a comment…"
+                           onkeydown="if(event.key==='Enter') submitComment({{ item.id }})">
+                    <button class="comment-send-btn" onclick="submitComment({{ item.id }})">Send</button>
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+    {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="empty">
+        <div class="empty-icon">🌐</div>
+        <h3>Nothing posted yet</h3>
+        <p>Be the first to share something in your area.</p>
+        <a href="/create_post" class="btn btn-primary" style="margin-top:16px;">+ Post Update</a>
+    </div>
+    {% endif %}
+
+    <div style="text-align:center;color:var(--muted);font-size:12px;padding:24px 0 8px;">
+        © 2026 Ampibians. All Rights Reserved.
+    </div>
+
+</div>
+</div>
+
+<!-- REPORT BOTTOM SHEET -->
+<div class="report-overlay" id="report-overlay">
+    <div class="report-sheet">
+        <div class="report-head">
+            <h3>Report</h3>
+            <p>Why are you reporting this post?<br>Your report is anonymous.</p>
+            <button class="report-close" onclick="closeReport()">×</button>
+        </div>
+        <button class="report-option" onclick="submitReport('I just don\'t like it')">
+            I just don't like it <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="report-option" onclick="submitReport('Bullying or unwanted contact')">
+            Bullying or unwanted contact <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="report-option" onclick="submitReport('Violence, hate or exploitation')">
+            Violence, hate or exploitation <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="report-option" onclick="submitReport('Selling or promoting restricted items')">
+            Selling or promoting restricted items <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="report-option" onclick="submitReport('Scam, fraud or spam')">
+            Scam, fraud or spam <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="report-option" onclick="submitReport('False information')">
+            False information <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="report-option" onclick="submitReport('Intellectual property')">
+            Intellectual property <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="feed-toast" id="feed-toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── THREE DOT MENU ───────────────────────────────────
+function toggleMenu(id, e) {
+    e.stopPropagation();
+    const menu   = document.getElementById(id);
+    const isOpen = menu.classList.contains('open');
+    closeAllMenus();
+    if (!isOpen) menu.classList.add('open');
+}
+
+function closeAllMenus() {
+    document.querySelectorAll('.post-dropdown').forEach(m => m.classList.remove('open'));
+}
+
+document.addEventListener('click', closeAllMenus);
+
+// ── REPORT ───────────────────────────────────────────
+let reportPostId   = null;
+let reportPostType = null;
+
+function openReport(postId, postType) {
+    reportPostId   = postId;
+    reportPostType = postType;
+    document.getElementById('report-overlay').classList.add('open');
+}
+
+function closeReport() {
+    document.getElementById('report-overlay').classList.remove('open');
+    reportPostId = reportPostType = null;
+}
+
+document.getElementById('report-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeReport();
+});
+
+async function submitReport(reason) {
+    if (!reportPostId) return;
+    closeReport();
+
+    try {
+        const res  = await fetch('/report_post', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                post_id:   reportPostId,
+                post_type: reportPostType,
+                reason
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('✅ Report submitted. Thank you.');
+        } else if (data.error === 'Already reported') {
+            showToast('⚠️ You already reported this post.');
+        } else {
+            showToast('Something went wrong. Try again.');
+        }
+    } catch(e) {
+        console.error('Report error:', e);
+    }
+}
+
+// ── TOAST ────────────────────────────────────────────
+function showToast(msg) {
+    const t = document.getElementById('feed-toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── FILTER ───────────────────────────────────────────
+let activeType     = 'all';
+let activeLocation = document.getElementById('location-filter')?.value?.toLowerCase().trim() || '';
+
+function setTypeFilter(type, card) {
+    activeType = type;
+    document.querySelectorAll('.quick-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    applyFilters();
+}
+
+function clearLocationFilter() {
+    document.getElementById('location-filter').value = '';
+    activeLocation = '';
+    applyFilters();
+}
+
+function applyFilters() {
+    activeLocation = document.getElementById('location-filter').value.toLowerCase().trim();
+    const cards = document.querySelectorAll('.post-card');
+    let visible = 0;
+
+    cards.forEach(card => {
+        const typeMatch     = activeType === 'all' || card.dataset.type === activeType;
+        const locationMatch = !activeLocation || (card.dataset.location || '').includes(activeLocation);
+        card.style.display  = (typeMatch && locationMatch) ? '' : 'none';
+        if (typeMatch && locationMatch) visible++;
+    });
+
+    const countEl = document.getElementById('results-count');
+    if (countEl) countEl.textContent = visible === cards.length ? '' : `Showing ${visible} of ${cards.length} posts`;
+
+    const noRes = document.getElementById('no-results');
+    if (noRes) noRes.style.display = visible === 0 ? 'block' : 'none';
+
+    updateFilterChips();
+}
+
+function updateFilterChips() {
+    const container = document.getElementById('active-filters');
+    if (!container) return;
+    container.innerHTML = '';
+    let hasFilters = false;
+    const labels = {job:'Jobs',service:'Services',event:'Events',alert:'Alerts',post:'Posts'};
+
+    if (activeType !== 'all') {
+        hasFilters = true;
+        container.innerHTML += `<div class="filter-chip">${labels[activeType]||activeType}<button onclick="resetTypeFilter()">×</button></div>`;
+    }
+    if (activeLocation) {
+        hasFilters = true;
+        container.innerHTML += `<div class="filter-chip">📍 ${activeLocation}<button onclick="clearLocationFilter()">×</button></div>`;
+    }
+    container.classList.toggle('show', hasFilters);
+}
+
+function resetTypeFilter() {
+    activeType = 'all';
+    document.querySelectorAll('.quick-card').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-type="all"]').classList.add('active');
+    applyFilters();
+}
+
+function resetFilters() {
+    activeType = 'all';
+    document.querySelectorAll('.quick-card').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-type="all"]').classList.add('active');
+    document.getElementById('location-filter').value = '';
+    activeLocation = '';
+    applyFilters();
+}
+
+// ── LIKE ─────────────────────────────────────────────
+async function toggleLike(postId, btn) {
+    try {
+        const res  = await fetch(`/like/${postId}`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) return;
+        const icon  = btn.querySelector('span:first-child');
+        const count = document.getElementById(`like-count-${postId}`);
+        if (data.liked) { btn.classList.add('liked'); icon.textContent = '❤️'; }
+        else            { btn.classList.remove('liked'); icon.textContent = '🤍'; }
+        count.textContent = data.likes_count;
+    } catch(e) {}
+}
+
+// ── COMMENTS ─────────────────────────────────────────
+function toggleComments(postId) {
+    const section = document.getElementById(`comments-${postId}`);
+    const isOpen  = section.classList.contains('open');
+    if (isOpen) { section.classList.remove('open'); }
+    else        { section.classList.add('open'); loadComments(postId); }
+}
+
+async function loadComments(postId) {
+    const list = document.getElementById(`comments-list-${postId}`);
+    try {
+        const res      = await fetch(`/get_comments/${postId}`);
+        const comments = await res.json();
+        if (!comments.length) { list.innerHTML = `<div class="no-comments">No comments yet — be the first!</div>`; return; }
+        list.innerHTML = comments.map(c => `
+            <div class="comment-item">
+                <div class="avatar" style="width:28px;height:28px;font-size:11px;flex-shrink:0;">
+                    ${c.username[0].toUpperCase()}
+                </div>
+                <div class="comment-bubble">
+                    <div class="comment-author">${esc(c.username)}</div>
+                    <div class="comment-text">${esc(c.text)}</div>
+                </div>
+            </div>`).join('');
+        const countEl = document.getElementById(`comment-count-${postId}`);
+        if (countEl) countEl.textContent = comments.length;
+    } catch(e) { list.innerHTML = `<div class="no-comments">Could not load comments.</div>`; }
+}
+
+async function submitComment(postId) {
+    const input = document.getElementById(`comment-input-${postId}`);
+    const text  = input.value.trim();
+    if (!text) return;
+    try {
+        const res  = await fetch(`/comment/${postId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (data.success) { input.value = ''; loadComments(postId); }
+    } catch(e) {}
+}
+
+// ── SHARE ────────────────────────────────────────────
+function sharePost(text) {
+    if (navigator.share) {
+        navigator.share({ title: 'Ampibians', text, url: window.location.href });
+    } else {
+        navigator.clipboard.writeText(window.location.href).then(() => showToast('🔗 Link copied!'));
+    }
+}
+
+function esc(str) {
+    return String(str).replace(/[&<>"']/g, m =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
+    );
+}
+
+// ── SMART IMAGE RATIO ────────────────────────────────
+function detectImageRatios() {
+    document.querySelectorAll('.post-image-wrap').forEach(wrap => {
+        const img = wrap.querySelector('img');
+        if (!img) return;
+        const applyRatio = () => {
+            const w = img.naturalWidth, h = img.naturalHeight;
+            if (!w || !h) return;
+            wrap.classList.remove('ratio-loading','ratio-landscape','ratio-portrait','ratio-square');
+            const r = w / h;
+            wrap.classList.add(r > 1.2 ? 'ratio-landscape' : r < 0.85 ? 'ratio-portrait' : 'ratio-square');
+        };
+        if (img.complete && img.naturalWidth) applyRatio();
+        else {
+            img.addEventListener('load', applyRatio);
+            img.addEventListener('error', () => { wrap.classList.remove('ratio-loading'); wrap.classList.add('ratio-landscape'); });
+        }
+    });
+}
+
+// ── INIT ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    if (activeLocation) applyFilters();
+    detectImageRatios();
+});
+</script>
+{% endblock %}
