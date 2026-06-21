@@ -12,6 +12,7 @@ from flask_mail import Mail, Message
 import random
 import string
 from datetime import datetime, timedelta
+from datetime import datetime, date
 
 # ============================================================
 #  APP SETUP
@@ -287,7 +288,7 @@ def logout():
 #  PROFILE
 # ============================================================
 
-@app.route("/profile")
+'''@app.route("/profile")
 @login_required
 def profile():
 
@@ -353,7 +354,136 @@ def profile():
 
     print(f"[PROFILE] uid={uid} total={len(all_posts)}")
 
-    return render_template("profile.html", user=user, posts=all_posts)
+    return render_template("profile.html", user=user, posts=all_posts)'''
+
+@app.route('/profile')
+def profile():
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    db = get_db()
+    user_id = session['user_id']
+    cur = db.cursor(dictionary=True)
+
+    # ─── 1. FETCH USER ─────────────────────────────────────────
+    cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cur.fetchone()
+
+    if not user:
+        cur.close()
+        return redirect('/login')
+
+    # ─── 2. FETCH USER'S OWN POSTS (all types in one list) ─────
+    posts = []
+
+    # General posts
+    cur.execute("""
+        SELECT id, content, image, location, created_at, 'post' AS post_type
+        FROM posts WHERE user_id = %s
+    """, (user_id,))
+    posts += cur.fetchall()
+
+    # Jobs
+    cur.execute("""
+        SELECT id, job_title AS content, company_logo AS image,
+               NULL AS location, created_at, 'job' AS post_type
+        FROM jobs WHERE user_id = %s
+    """, (user_id,))
+    posts += cur.fetchall()
+
+    # Services
+    cur.execute("""
+        SELECT id,
+               COALESCE(company_name, shop_name, 'Service') AS content,
+               image, NULL AS location, created_at, 'service' AS post_type
+        FROM services WHERE user_id = %s
+    """, (user_id,))
+    posts += cur.fetchall()
+
+    # Events
+    cur.execute("""
+        SELECT id, event_title AS content, image,
+               place AS location, created_at, 'event' AS post_type
+        FROM events WHERE user_id = %s
+    """, (user_id,))
+    posts += cur.fetchall()
+
+    # Alerts
+    cur.execute("""
+        SELECT id, title AS content, image, NULL AS location,
+               created_at, 'alert' AS post_type
+        FROM alerts WHERE user_id = %s
+    """, (user_id,))
+    posts += cur.fetchall()
+
+    # Newest first
+    posts.sort(key=lambda x: x.get('created_at') or 0, reverse=True)
+
+    # ─── 3. FETCH SAVED ITEMS ──────────────────────────────────
+    saved_posts = []
+
+    cur.execute("""
+        SELECT p.id, p.content, p.image, p.location, p.created_at,
+               'post' AS post_type, u.username, u.profile_image, sp.saved_at
+        FROM saved_posts sp
+        JOIN posts p ON p.id = sp.post_id
+        JOIN users u ON u.id = p.user_id
+        WHERE sp.user_id=%s AND sp.post_type='post'
+    """, (user_id,))
+    saved_posts += cur.fetchall()
+
+    cur.execute("""
+        SELECT j.id, j.job_title AS content, j.company_logo AS image,
+               NULL AS location, j.created_at,
+               'job' AS post_type, u.username, u.profile_image, sp.saved_at
+        FROM saved_posts sp
+        JOIN jobs j ON j.id = sp.post_id
+        JOIN users u ON u.id = j.user_id
+        WHERE sp.user_id=%s AND sp.post_type='job'
+    """, (user_id,))
+    saved_posts += cur.fetchall()
+
+    cur.execute("""
+        SELECT s.id,
+               COALESCE(s.company_name, s.shop_name, 'Service') AS content,
+               s.image, NULL AS location, s.created_at,
+               'service' AS post_type, u.username, u.profile_image, sp.saved_at
+        FROM saved_posts sp
+        JOIN services s ON s.id = sp.post_id
+        JOIN users u ON u.id = s.user_id
+        WHERE sp.user_id=%s AND sp.post_type='service'
+    """, (user_id,))
+    saved_posts += cur.fetchall()
+
+    cur.execute("""
+        SELECT e.id, e.event_title AS content, e.image,
+               e.place AS location, e.created_at,
+               'event' AS post_type, u.username, u.profile_image, sp.saved_at
+        FROM saved_posts sp
+        JOIN events e ON e.id = sp.post_id
+        JOIN users u ON u.id = e.user_id
+        WHERE sp.user_id=%s AND sp.post_type='event'
+    """, (user_id,))
+    saved_posts += cur.fetchall()
+
+    cur.execute("""
+        SELECT a.id, a.title AS content, a.image, NULL AS location, a.created_at,
+               'alert' AS post_type, u.username, u.profile_image, sp.saved_at
+        FROM saved_posts sp
+        JOIN alerts a ON a.id = sp.post_id
+        JOIN users u ON u.id = a.user_id
+        WHERE sp.user_id=%s AND sp.post_type='alert'
+    """, (user_id,))
+    saved_posts += cur.fetchall()
+
+    saved_posts.sort(key=lambda x: x.get('saved_at') or 0, reverse=True)
+
+    cur.close()
+
+    return render_template('profile.html',
+                           user=user,
+                           posts=posts,
+                           saved_posts=saved_posts)
 
 
 @app.route("/update_banner", methods=["POST"])
@@ -890,7 +1020,7 @@ def jobs():
     cur.close(); db.close()
     return render_template("jobs.html", jobs=job_list)'''
 
-@app.route("/jobs", methods=["GET", "POST"])
+'''@app.route("/jobs", methods=["GET", "POST"])
 @login_required
 def jobs():
 
@@ -964,9 +1094,93 @@ def jobs():
         job["days_live"] = days_since(job["created_at"])
 
     cur.close(); db.close()
-    return render_template("jobs.html", jobs=job_list)
+    return render_template("jobs.html", jobs=job_list)'''
 
-@app.route("/apply_job/<int:job_id>")
+
+@app.route("/jobs", methods=["GET", "POST"])
+@login_required
+def jobs():
+
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+
+    if request.method == "POST":
+
+        want_boost        = request.form.get("want_boost") == "yes"
+        recruiter_name    = request.form.get("recruiter_name")
+        organization_name = request.form.get("organization_name")
+        job_title         = request.form.get("job_title", "").strip()
+        experience        = request.form.get("experience")
+        employment_type   = request.form.get("employment_type")
+        job_description   = request.form.get("job_description")
+        hiring_type        = request.form.get("hiring_type")
+        walkin_date       = request.form.get("walkin_date") or None
+        walkin_start      = request.form.get("walkin_start") or None
+        walkin_end        = request.form.get("walkin_end") or None
+        walkin_location   = request.form.get("walkin_location")
+        apply_link        = request.form.get("apply_link")
+        job_location      = request.form.get("job_location", "").strip() or session.get("location", "")
+
+        logo_filename = None
+        logo_file = request.files.get("company_logo")
+        if logo_file and logo_file.filename != "":
+            logo_filename = secure_filename(logo_file.filename)
+            logo_file.save(os.path.join(app.config["UPLOAD_FOLDER"], logo_filename))
+
+        cur.execute("""
+            SELECT id FROM jobs
+            WHERE user_id = %s AND job_title = %s
+            AND created_at > NOW() - INTERVAL 30 SECOND
+        """, (session["user_id"], job_title))
+
+        if cur.fetchone():
+            cur.close(); db.close()
+            return redirect("/jobs")
+
+        cur.execute("""
+            INSERT INTO jobs (
+                user_id, recruiter_name, organization_name, job_title, experience,
+                employment_type, job_description, hiring_type,
+                walkin_date, walkin_start, walkin_end, walkin_location,
+                apply_link, company_logo, location
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            session["user_id"], recruiter_name, organization_name, job_title, experience,
+            employment_type, job_description, hiring_type,
+            walkin_date, walkin_start, walkin_end, walkin_location,
+            apply_link, logo_filename, job_location
+        ))
+        db.commit()
+        new_id = cur.lastrowid
+        cur.close(); db.close()
+
+        if want_boost:
+            return redirect(f"/boost/job/{new_id}")
+        return redirect("/jobs")
+
+    cur.execute("""
+        SELECT jobs.*, users.username, users.profile_image
+        FROM jobs
+        JOIN users ON jobs.user_id = users.id
+        ORDER BY jobs.is_featured DESC, jobs.created_at DESC
+    """)
+    job_list = cur.fetchall()
+
+    for job in job_list:
+        job["days_live"] = days_since(job["created_at"])
+
+    # distinct locations for filter dropdown
+    cur.execute("""
+        SELECT DISTINCT location FROM jobs
+        WHERE location IS NOT NULL AND location != ''
+        ORDER BY location ASC
+    """)
+    locations = [row["location"] for row in cur.fetchall()]
+
+    cur.close(); db.close()
+    return render_template("jobs.html", jobs=job_list, locations=locations)
+
+'''@app.route("/apply_job/<int:job_id>")
 @login_required
 def apply_job(job_id):
     db  = get_db()
@@ -986,10 +1200,200 @@ def apply_job(job_id):
         print(f"[APPLY ERROR] {e}")
         db.rollback()
     cur.close(); db.close()
-    return redirect("/jobs")
+    return redirect("/jobs")'''
+
+'''@app.route("/apply_job/<int:job_id>")
+@login_required
+def apply_job(job_id):
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+
+    cur.execute("""
+        UPDATE jobs SET applied_count = applied_count + 1
+        WHERE id = %s
+    """, (job_id,))
+
+    # get job owner + title
+    cur.execute("""
+        SELECT jobs.user_id, jobs.job_title, users.username AS applicant
+        FROM jobs
+        JOIN users ON users.id = %s
+        WHERE jobs.id = %s
+    """, (session["user_id"], job_id))
+    row = cur.fetchone()
+    db.commit()
+    cur.close(); db.close()
+
+    if row and row["user_id"] != session["user_id"]:
+        create_notification(
+            user_id = row["user_id"],
+            type_   = "job_apply",
+            title   = "New Job Application",
+            body    = f"{row['applicant']} applied to your job: {row['job_title']}",
+            link    = f"/jobs"
+        )
+
+    return redirect("/jobs")'''
+
+@app.route("/apply_job/<int:job_id>", methods=["GET", "POST"])
+@login_required
+def apply_job(job_id):
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+
+    cur.execute("SELECT * FROM jobs WHERE id = %s", (job_id,))
+    job = cur.fetchone()
+    if not job:
+        cur.close(); db.close()
+        return redirect("/jobs")
+
+    # if job has a direct apply_link, skip the in-app form entirely
+    if job.get("apply_link"):
+        cur.close(); db.close()
+        return redirect(job["apply_link"])
+
+    if request.method == "POST":
+
+        # prevent duplicate application
+        cur.execute("""
+            SELECT id FROM job_applications
+            WHERE job_id = %s AND applicant_id = %s
+        """, (job_id, session["user_id"]))
+        if cur.fetchone():
+            cur.close(); db.close()
+            return redirect("/jobs?already_applied=1")
+
+        full_name  = request.form.get("full_name", "").strip()
+        email      = request.form.get("email", "").strip()
+        phone      = request.form.get("phone", "").strip()
+        cover_note = request.form.get("cover_note", "").strip()
+
+        resume_filename = None
+        resume_file = request.files.get("resume")
+        if resume_file and resume_file.filename != "":
+            ext = resume_file.filename.rsplit(".", 1)[-1].lower()
+            if ext in ["pdf", "png", "jpg", "jpeg"]:
+                resume_filename = secure_filename(
+                    f"resume_{session['user_id']}_{job_id}_{resume_file.filename}"
+                )
+                resume_file.save(os.path.join(app.config["UPLOAD_FOLDER"], resume_filename))
+
+        cur.execute("""
+            INSERT INTO job_applications
+                (job_id, applicant_id, full_name, email, phone, resume_file, cover_note)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """, (job_id, session["user_id"], full_name, email, phone,
+              resume_filename, cover_note))
+        application_id = cur.lastrowid
+
+        # ── WORK EXPERIENCE ──
+        work_companies = request.form.getlist("work_company[]")
+        work_roles     = request.form.getlist("work_role[]")
+        work_desc      = request.form.getlist("work_description[]")
+        work_start     = request.form.getlist("work_start[]")
+        work_end       = request.form.getlist("work_end[]")
+        work_current   = request.form.getlist("work_current[]")
+
+        for i in range(len(work_companies)):
+            if work_companies[i].strip():
+                cur.execute("""
+                    INSERT INTO application_work_experience
+                        (application_id, company_name, role, description,
+                         start_date, end_date, is_current)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s)
+                """, (application_id, work_companies[i], work_roles[i],
+                      work_desc[i], work_start[i],
+                      work_end[i] if i < len(work_end) else None, False))
+
+        # ── INTERNSHIPS ──
+        intern_companies = request.form.getlist("intern_company[]")
+        intern_roles     = request.form.getlist("intern_role[]")
+        intern_desc      = request.form.getlist("intern_description[]")
+        intern_start     = request.form.getlist("intern_start[]")
+        intern_end       = request.form.getlist("intern_end[]")
+
+        for i in range(len(intern_companies)):
+            if intern_companies[i].strip():
+                cur.execute("""
+                    INSERT INTO application_internships
+                        (application_id, company_name, role, description, start_date, end_date)
+                    VALUES (%s,%s,%s,%s,%s,%s)
+                """, (application_id, intern_companies[i], intern_roles[i],
+                      intern_desc[i], intern_start[i],
+                      intern_end[i] if i < len(intern_end) else None))
+
+        # ── EDUCATION ──
+        edu_colleges = request.form.getlist("edu_college[]")
+        edu_courses  = request.form.getlist("edu_course[]")
+        edu_years    = request.form.getlist("edu_year[]")
+
+        for i in range(len(edu_colleges)):
+            if edu_colleges[i].strip():
+                cur.execute("""
+                    INSERT INTO application_education
+                        (application_id, college_name, course, completed_year)
+                    VALUES (%s,%s,%s,%s)
+                """, (application_id, edu_colleges[i], edu_courses[i], edu_years[i]))
+
+        cur.execute("UPDATE jobs SET applied_count = applied_count + 1 WHERE id = %s", (job_id,))
+        db.commit()
+        cur.close(); db.close()
+
+        # ── NOTIFY JOB OWNER / HR ──
+        if job["user_id"] != session["user_id"]:
+            create_notification(
+                user_id = job["user_id"],
+                type_   = "job_apply",
+                title   = "New Job Application",
+                body    = f"{full_name} applied to your job: {job['job_title']}",
+                link    = f"/jobs/applications/{job_id}"
+            )
+
+        return redirect("/jobs?applied=1")
+
+    cur.close(); db.close()
+    return render_template("apply_job.html", job=job)
+
+# ── VIEW APPLICATIONS (for job poster) ──
+@app.route("/jobs/applications/<int:job_id>")
+@login_required
+def view_applications(job_id):
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+
+    cur.execute("SELECT * FROM jobs WHERE id = %s", (job_id,))
+    job = cur.fetchone()
+    if not job or job["user_id"] != session["user_id"]:
+        cur.close(); db.close()
+        return "Access denied", 403
+
+    cur.execute("""
+        SELECT job_applications.*, users.username
+        FROM job_applications
+        JOIN users ON job_applications.applicant_id = users.id
+        WHERE job_id = %s
+        ORDER BY created_at DESC
+    """, (job_id,))
+    applications = cur.fetchall()
+
+    for app_row in applications:
+        cur.execute("SELECT * FROM application_work_experience WHERE application_id = %s",
+                    (app_row["id"],))
+        app_row["work_experience"] = cur.fetchall()
+
+        cur.execute("SELECT * FROM application_internships WHERE application_id = %s",
+                    (app_row["id"],))
+        app_row["internships"] = cur.fetchall()
+
+        cur.execute("SELECT * FROM application_education WHERE application_id = %s",
+                    (app_row["id"],))
+        app_row["education"] = cur.fetchall()
+
+    cur.close(); db.close()
+    return render_template("view_applications.html", job=job, applications=applications)
 
 
-@app.route("/interested_job/<int:job_id>")
+'''@app.route("/interested_job/<int:job_id>")
 @login_required
 def interested_job(job_id):
     db  = get_db()
@@ -1009,8 +1413,37 @@ def interested_job(job_id):
         print(f"[INTERESTED ERROR] {e}")
         db.rollback()
     cur.close(); db.close()
-    return redirect("/jobs")
+    return redirect("/jobs")'''
 
+@app.route("/interested_job/<int:job_id>")
+@login_required
+def interested_job(job_id):
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+
+    cur.execute("SELECT * FROM jobs WHERE id = %s", (job_id,))
+    job = cur.fetchone()
+
+    if job:
+        cur.execute("SELECT username FROM users WHERE id = %s", (session["user_id"],))
+        applicant = cur.fetchone()
+
+        cur.execute("UPDATE jobs SET interested_count = interested_count + 1 WHERE id = %s", (job_id,))
+        db.commit()
+        cur.close(); db.close()
+
+        if job["user_id"] != session["user_id"]:
+            create_notification(
+                user_id = job["user_id"],
+                type_   = "interested",
+                title   = "Someone is Interested",
+                body    = f"{applicant['username']} marked interest in your job: {job['job_title']}",
+                link    = "/jobs"
+            )
+    else:
+        cur.close(); db.close()
+
+    return redirect("/jobs")
 
 # ============================================================
 #  EVENTS
@@ -1774,9 +2207,587 @@ def report_post():
                     WHERE id = %s
                 """, (owner_id,))
 
+    # inside report_post(), after UPDATE users SET scam_reports...
+    if row:
+        owner_id = row["user_id"]
+        cur.execute("""
+            UPDATE users
+            SET scam_reports = scam_reports + 1,
+                is_scam_flagged = CASE
+                    WHEN scam_reports + 1 >= 3 THEN TRUE
+                    ELSE FALSE
+                END
+            WHERE id = %s
+        """, (owner_id,))
+
+        # notify the reported user
+        create_notification(
+            user_id=owner_id,
+            type_="report",
+            title="Your Post Was Reported",
+            body=f"One of your posts was reported for: {reason}. Please review our community guidelines.",
+            link="/profile"
+        )
+
+        # extra warning if now flagged
+        cur.execute("SELECT scam_reports FROM users WHERE id = %s", (owner_id,))
+        updated = cur.fetchone()
+        if updated and updated["scam_reports"] >= 3:
+            create_notification(
+                user_id=owner_id,
+                type_="warning",
+                title="⚠️ Scam Warning Issued",
+                body="Your account has received 3+ scam reports. A warning badge has been added to your posts. Contact support to appeal.",
+                link="/legal/community"
+            )
+
     db.commit()
     cur.close(); db.close()
     return jsonify({"success": True})
+
+# ── LEGAL PAGES ───────────────────────────────────────
+
+@app.route("/legal")
+def legal():
+    return redirect("/legal/privacy")
+
+@app.route("/legal/<section>")
+def legal_page(section):
+    valid = ["privacy", "terms", "community", "disclaimer", "copyright", "contact"]
+    if section not in valid:
+        return redirect("/legal/privacy")
+    titles = {
+        "privacy":    "Privacy Policy",
+        "terms":      "Terms & Conditions",
+        "community":  "Community Guidelines",
+        "disclaimer": "Disclaimer",
+        "copyright":  "Copyright Notice",
+        "contact":    "Contact Us"
+    }
+    return render_template("legal.html",
+                           section=section,
+                           page_title=titles[section])
+
+
+@app.route("/search")
+@login_required
+def search():
+    q = request.args.get("q", "").strip()
+    if not q:
+        return render_template("search.html", q="", results=[])
+
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+    like = f"%{q}%"
+
+    # jobs
+    cur.execute("""
+        SELECT id, job_title AS title, organization_name AS subtitle,
+               job_description AS body, 'job' AS type, created_at
+        FROM jobs
+        WHERE job_title LIKE %s OR organization_name LIKE %s OR job_description LIKE %s
+        ORDER BY is_featured DESC, created_at DESC LIMIT 10
+    """, (like, like, like))
+    jobs = cur.fetchall()
+
+    # services
+    cur.execute("""
+        SELECT id, COALESCE(company_name, shop_name, 'Business') AS title,
+               COALESCE(service_type, shop_type, category) AS subtitle,
+               COALESCE(service_description, shop_description, bio, content) AS body,
+               'service' AS type, created_at
+        FROM services
+        WHERE company_name LIKE %s OR shop_name LIKE %s
+           OR service_type LIKE %s OR service_description LIKE %s
+        ORDER BY is_featured DESC, created_at DESC LIMIT 10
+    """, (like, like, like, like))
+    services = cur.fetchall()
+
+    # events
+    cur.execute("""
+        SELECT id, event_title AS title, place AS subtitle,
+               about_event AS body, 'event' AS type, created_at
+        FROM events
+        WHERE event_title LIKE %s OR about_event LIKE %s OR place LIKE %s
+        ORDER BY event_date ASC LIMIT 10
+    """, (like, like, like))
+    events = cur.fetchall()
+
+    # alerts
+    cur.execute("""
+        SELECT id, title, alert_type AS subtitle,
+               description AS body, 'alert' AS type, created_at
+        FROM alerts
+        WHERE title LIKE %s OR description LIKE %s
+        ORDER BY created_at DESC LIMIT 10
+    """, (like, like))
+    alerts = cur.fetchall()
+
+    # posts
+    cur.execute("""
+        SELECT id, content AS title, type AS subtitle,
+               content AS body, 'post' AS type, created_at
+        FROM posts
+        WHERE content LIKE %s
+        ORDER BY created_at DESC LIMIT 10
+    """, (like,))
+    posts = cur.fetchall()
+
+    results = jobs + services + events + alerts + posts
+    results.sort(key=lambda x: x["created_at"], reverse=True)
+
+    cur.close(); db.close()
+    return render_template("search.html", q=q, results=results)
+
+
+import secrets
+
+# store reset tokens {token: {user_id, expires_at}}
+reset_tokens = {}
+
+@app.route("/forgot_password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        db  = get_db()
+        cur = db.cursor(dictionary=True)
+        cur.execute("SELECT id, username FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
+        cur.close(); db.close()
+
+        if user:
+            token = secrets.token_urlsafe(32)
+            reset_tokens[token] = {
+                "user_id":    user["id"],
+                "expires_at": datetime.now() + timedelta(hours=1)
+            }
+            reset_url = f"http://localhost:5000/reset_password/{token}"
+            try:
+                msg = Message(
+                    subject="Reset your Ampibians password",
+                    recipients=[email],
+                    html=f"""
+                    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;
+                                padding:32px;background:#1a1917;border-radius:12px;">
+                        <h2 style="color:#e8622a;">Ampibians</h2>
+                        <p style="color:#f0ece4;margin:16px 0;">
+                            Hi {user['username']}, click below to reset your password.
+                            This link expires in 1 hour.
+                        </p>
+                        <a href="{reset_url}"
+                           style="display:inline-block;background:#e8622a;color:white;
+                                  padding:12px 24px;text-decoration:none;font-weight:700;
+                                  border-radius:6px;margin:16px 0;">
+                            Reset Password
+                        </a>
+                        <p style="color:#7a756c;font-size:13px;">
+                            If you didn't request this, ignore this email.
+                        </p>
+                    </div>
+                    """
+                )
+                mail.send(msg)
+            except Exception as e:
+                print("[RESET EMAIL ERROR]", e)
+
+        # always show same message (security — don't reveal if email exists)
+        return render_template("forgot_password.html",
+                               message="If that email is registered, a reset link has been sent.")
+
+    return render_template("forgot_password.html", message=None)
+
+
+@app.route("/reset_password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    record = reset_tokens.get(token)
+
+    if not record or datetime.now() > record["expires_at"]:
+        return render_template("reset_password.html",
+                               error="This link has expired or is invalid.", token=token)
+
+    if request.method == "POST":
+        password  = request.form.get("password", "")
+        password2 = request.form.get("password2", "")
+
+        if len(password) < 8:
+            return render_template("reset_password.html",
+                                   error="Password must be at least 8 characters.", token=token)
+        if password != password2:
+            return render_template("reset_password.html",
+                                   error="Passwords do not match.", token=token)
+
+        db  = get_db()
+        cur = db.cursor()
+        cur.execute(
+            "UPDATE users SET password = %s WHERE id = %s",
+            (generate_password_hash(password), record["user_id"])
+        )
+        db.commit()
+        cur.close(); db.close()
+
+        reset_tokens.pop(token, None)
+        return redirect("/?reset=1")
+
+    return render_template("reset_password.html", error=None, token=token)
+
+# ═══════════════════════════════════════════════════════
+# NOTIFICATION HELPER
+# ═══════════════════════════════════════════════════════
+
+def create_notification(user_id, type_, title, body, link=""):
+    """Insert a notification row and send an email."""
+    try:
+        db  = get_db()
+        cur = db.cursor(dictionary=True)
+
+        # insert in-app notification
+        cur.execute("""
+            INSERT INTO notifications (user_id, type, title, body, link)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, type_, title, body, link))
+        db.commit()
+
+        # get user email + name for the email
+        cur.execute("SELECT email, username FROM users WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+        cur.close(); db.close()
+
+        if user:
+            send_notification_email(
+                to_email = user["email"],
+                to_name  = user["username"],
+                title    = title,
+                body     = body,
+                link     = link
+            )
+
+    except Exception as e:
+        print("[NOTIF ERROR]", e)
+
+
+def send_notification_email(to_email, to_name, title, body, link=""):
+    """Send a styled HTML notification email."""
+    try:
+        link_html = ""
+        if link:
+            full_link = f"http://localhost:5000{link}"
+            link_html = f"""
+            <a href="{full_link}"
+               style="display:inline-block;margin-top:16px;
+                      background:#e8622a;color:white;padding:10px 22px;
+                      text-decoration:none;font-weight:700;border-radius:6px;">
+                View on Ampibians →
+            </a>"""
+
+        msg = Message(
+            subject   = f"Ampibians: {title}",
+            recipients= [to_email],
+            html      = f"""
+            <div style="font-family:'DM Sans',sans-serif;max-width:520px;
+                        margin:0 auto;background:#1a1917;border-radius:12px;
+                        overflow:hidden;">
+
+                <!-- Header -->
+                <div style="background:#e8622a;padding:20px 28px;
+                            display:flex;align-items:center;gap:10px;">
+                    <div style="font-family:monospace;font-size:20px;
+                                font-weight:800;color:white;">
+                        Ampibians
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div style="padding:28px;">
+                    <p style="color:#f0ece4;font-size:15px;margin-bottom:6px;">
+                        Hi <strong>{to_name}</strong>,
+                    </p>
+                    <h2 style="color:#e8622a;font-size:20px;
+                               font-weight:700;margin:12px 0 8px;">
+                        {title}
+                    </h2>
+                    <p style="color:#c0bbb2;font-size:14px;line-height:1.7;">
+                        {body}
+                    </p>
+                    {link_html}
+                </div>
+
+                <!-- Footer -->
+                <div style="padding:16px 28px;border-top:1px solid #2e2c29;">
+                    <p style="color:#7a756c;font-size:12px;margin:0;">
+                        You're receiving this because you have an Ampibians account.<br>
+                        © 2026 Ampibians · Chennai, Tamil Nadu, India
+                    </p>
+                </div>
+            </div>
+            """
+        )
+        mail.send(msg)
+    except Exception as e:
+        print("[EMAIL ERROR]", e)
+
+
+# ═══════════════════════════════════════════════════════
+# NOTIFICATION ROUTES
+# ═══════════════════════════════════════════════════════
+
+@app.route("/notifications")
+@login_required
+def notifications():
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+    uid = session["user_id"]
+
+    cur.execute("""
+        SELECT * FROM notifications
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+        LIMIT 60
+    """, (uid,))
+    notifs = cur.fetchall()
+
+    # count unread before marking read
+    unread_count = sum(1 for n in notifs if not n["is_read"])
+
+    # mark all as read
+    cur.execute("""
+        UPDATE notifications
+        SET is_read = TRUE
+        WHERE user_id = %s AND is_read = FALSE
+    """, (uid,))
+    db.commit()
+    cur.close(); db.close()
+
+    return render_template("notifications.html",
+                           notifications=notifs,
+                           unread_count=unread_count,
+                           now_date=date.today().strftime('%d %b %Y'))
+
+
+@app.route("/notifications/unread_count")
+@login_required
+def notifications_unread_count():
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+    cur.execute("""
+        SELECT COUNT(*) AS total FROM notifications
+        WHERE user_id = %s AND is_read = FALSE
+    """, (session["user_id"],))
+    count = cur.fetchone()["total"]
+    cur.close(); db.close()
+    return jsonify({"count": count})
+
+
+@app.route("/notifications/mark_read/<int:notif_id>", methods=["POST"])
+@login_required
+def mark_notification_read(notif_id):
+    db  = get_db()
+    cur = db.cursor()
+    cur.execute("""
+        UPDATE notifications SET is_read = TRUE
+        WHERE id = %s AND user_id = %s
+    """, (notif_id, session["user_id"]))
+    db.commit()
+    cur.close(); db.close()
+    return jsonify({"success": True})
+
+
+@app.route("/notifications/mark_all_read", methods=["POST"])
+@login_required
+def mark_all_read():
+    db  = get_db()
+    cur = db.cursor()
+    cur.execute("""
+        UPDATE notifications SET is_read = TRUE
+        WHERE user_id = %s
+    """, (session["user_id"],))
+    db.commit()
+    cur.close(); db.close()
+    return redirect("/notifications")
+
+ADMIN_EMAILS = [
+    "official13301330@gmail.com"
+]
+
+def admin_required(f):
+
+    from functools import wraps
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+
+        print("SESSION:", session)
+
+        if "user_id" not in session:
+            return redirect("/")
+
+        db = get_db()
+        cur = db.cursor(dictionary=True)
+
+        cur.execute(
+            "SELECT email FROM users WHERE id = %s",
+            (session["user_id"],)
+        )
+
+        user = cur.fetchone()
+
+        cur.close()
+        db.close()
+
+        print("DB USER:", user)
+
+        if not user:
+            return "Access denied - no user", 403
+
+        user_email = str(user["email"]).strip().lower()
+
+        print("USER EMAIL:", user_email)
+        print("ADMIN EMAILS:", ADMIN_EMAILS)
+
+        if user_email not in [x.lower() for x in ADMIN_EMAILS]:
+            return "Access denied - not admin", 403
+
+        return f(*args, **kwargs)
+
+    return decorated
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    db  = get_db()
+    cur = db.cursor(dictionary=True)
+
+    cur.execute("SELECT COUNT(*) AS total FROM users")
+    user_count = cur.fetchone()["total"]
+
+    cur.execute("SELECT COUNT(*) AS total FROM jobs")
+    job_count = cur.fetchone()["total"]
+
+    cur.execute("SELECT COUNT(*) AS total FROM services")
+    svc_count = cur.fetchone()["total"]
+
+    cur.execute("SELECT COUNT(*) AS total FROM post_reports")
+    report_count = cur.fetchone()["total"]
+
+    cur.execute("""
+        SELECT users.id, users.username, users.email, users.scam_reports,
+               users.is_scam_flagged, users.created_at,
+               COUNT(post_reports.id) AS report_count
+        FROM users
+        LEFT JOIN post_reports ON post_reports.reporter_id = users.id
+        GROUP BY users.id
+        ORDER BY users.scam_reports DESC, users.created_at DESC
+        LIMIT 50
+    """)
+    users = cur.fetchall()
+
+    cur.execute("""
+        SELECT post_reports.*, users.username AS reporter
+        FROM post_reports
+        JOIN users ON post_reports.reporter_id = users.id
+        ORDER BY post_reports.created_at DESC
+        LIMIT 30
+    """)
+    reports = cur.fetchall()
+
+    cur.close(); db.close()
+    return render_template("admin.html",
+                           user_count=user_count,
+                           job_count=job_count,
+                           svc_count=svc_count,
+                           report_count=report_count,
+                           users=users,
+                           reports=reports)
+
+
+@app.route("/admin/ban/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_ban_user(user_id):
+    db  = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "UPDATE users SET is_scam_flagged = TRUE, scam_reports = 99 WHERE id = %s",
+        (user_id,)
+    )
+    db.commit()
+    cur.close(); db.close()
+    return redirect("/admin")
+
+
+@app.route("/admin/unban/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_unban_user(user_id):
+    db  = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "UPDATE users SET is_scam_flagged = FALSE, scam_reports = 0 WHERE id = %s",
+        (user_id,)
+    )
+    db.commit()
+    cur.close(); db.close()
+    return redirect("/admin")
+
+
+@app.route("/admin/delete_post/<post_type>/<int:post_id>", methods=["POST"])
+@admin_required
+def admin_delete_post(post_type, post_id):
+    db  = get_db()
+    cur = db.cursor()
+    table_map = {
+        "post": "posts", "job": "jobs", "service": "services",
+        "event": "events", "alert": "alerts"
+    }
+    table = table_map.get(post_type)
+    if table:
+        cur.execute(f"DELETE FROM {table} WHERE id = %s", (post_id,))
+        db.commit()
+    cur.close(); db.close()
+    return redirect("/admin")
+
+
+@app.route('/save_post', methods=['POST'])
+def save_post():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Not logged in'}), 401
+
+    data = request.get_json()
+    post_id = data.get('post_id')
+    post_type = data.get('post_type', 'post')
+    user_id = session['user_id']
+
+    db = get_db()
+    cur = db.cursor(dictionary=True)
+
+    if not post_id or post_type not in ['post', 'job', 'service', 'event', 'alert']:
+        return jsonify({'success': False, 'error': 'Invalid data'}), 400
+
+    # ✅ Create cursor from your DB connection
+    cur = db.cursor(dictionary=True)   # use db.cursor() if not mysql.connector
+
+    # Check if already saved — note %s for MySQL
+    cur.execute(
+        'SELECT id FROM saved_posts WHERE user_id = %s AND post_id = %s AND post_type = %s',
+        (user_id, post_id, post_type)
+    )
+    existing = cur.fetchone()
+
+    if existing:
+        # Remove save (toggle off)
+        cur.execute(
+            'DELETE FROM saved_posts WHERE user_id = %s AND post_id = %s AND post_type = %s',
+            (user_id, post_id, post_type)
+        )
+        db.commit()
+        cur.close()
+        return jsonify({'success': True, 'saved': False})
+    else:
+        # Add save
+        cur.execute(
+            'INSERT INTO saved_posts (user_id, post_id, post_type, saved_at) VALUES (%s, %s, %s, %s)',
+            (user_id, post_id, post_type, datetime.now())
+        )
+        db.commit()
+        cur.close()
+        return jsonify({'success': True, 'saved': True})
 
 # ============================================================
 #  RUN
